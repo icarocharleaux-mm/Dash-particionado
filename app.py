@@ -55,21 +55,50 @@ try:
     ])
 
     with aba1:
+        # --- CALCULANDO AS TAXAS DO SEU AMIGO ---
+        total_ocorrencias = len(df_uni)
+        
+        # Evita erro de divisão por zero caso o filtro deixe a base vazia
+        if total_ocorrencias > 0:
+            taxa_dano = len(df_danos) / total_ocorrencias
+            taxa_falta = len(df_faltas) / total_ocorrencias
+            media_itens_por_ocorrencia = df_uni["Quantidade"].sum() / total_ocorrencias
+        else:
+            taxa_dano = 0
+            taxa_falta = 0
+            media_itens_por_ocorrencia = 0
+
+        # --- EXIBINDO AS MÉTRICAS COM AS PORCENTAGENS ---
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Ocorrências (Linhas)", len(df_uni))
-        c2.metric("Ocorrências de Dano", len(df_danos))
-        c3.metric("Ocorrências de Falta", len(df_faltas))
-        c4.metric("Itens Afetados", int(df_uni["Quantidade"].sum()))
+        
+        # O st.metric aceita um valor principal e uma "informação extra" menor embaixo
+        c1.metric("Total de Ocorrências", total_ocorrencias)
+        c2.metric("Ocorrências de Dano", len(df_danos), f"{taxa_dano:.1%} do Total", delta_color="off")
+        c3.metric("Ocorrências de Falta", len(df_faltas), f"{taxa_falta:.1%} do Total", delta_color="off")
+        c4.metric("Média Itens/Ocorrência", f"{media_itens_por_ocorrencia:.1f}")
+        
         st.write("---")
+        
         col_esq, col_dir = st.columns([2, 1])
         with col_esq:
             st.markdown("**📊 Top 10 Motoristas (Volume de Itens)**")
-            fig = plot_top_motoristas(df_uni, 'Viridis')
-            if fig: st.plotly_chart(fig, use_container_width=True)
+            if not df_uni.empty:
+                ranking = df_uni.groupby('Motorista')['Quantidade'].sum().nlargest(10).reset_index()
+                filial_map_geral = df_uni.groupby("Motorista")["Filial"].agg(lambda x: x.value_counts().index[0] if not x.empty else "N/A").to_dict()
+                ranking["Filial"] = ranking["Motorista"].map(filial_map_geral)
+                
+                fig = px.bar(ranking, x='Quantidade', y='Motorista', orientation='h', 
+                             color='Quantidade', color_continuous_scale='Viridis',
+                             hover_data=['Filial'])
+                fig.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+                
         with col_dir:
             st.markdown("**⚖️ Dano x Falta (Itens)**")
-            fig_p = plot_pizza_tipo_ocorrencia(df_uni)
-            if fig_p: st.plotly_chart(fig_p, use_container_width=True)
+            if not df_uni.empty:
+                pizza = df_uni.groupby('Tipo_Ocorrencia')['Quantidade'].sum().reset_index()
+                fig_p = px.pie(pizza, names='Tipo_Ocorrencia', values='Quantidade', hole=0.4, color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'})
+                st.plotly_chart(fig_p, use_container_width=True)
 
     with aba2:
         if not df_danos.empty:

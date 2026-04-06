@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px   # <--- É ESSA LINHA AQUI QUE FALTOU!
+import plotly.graph_objects as go
 import traceback
 
 # --- IMPORTANDO AS CAMADAS ---

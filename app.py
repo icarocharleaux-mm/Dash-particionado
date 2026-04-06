@@ -102,6 +102,16 @@ try:
                 fig_p = px.pie(pizza, names='Tipo_Ocorrencia', values='Quantidade', hole=0.4, color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'})
                 st.plotly_chart(fig_p, use_container_width=True)
 
+  # --- NOVO: A SANFONA DE INVESTIGAÇÃO (DRILL DOWN) ---
+        st.write("---")
+        with st.expander("🔎 Ferramenta de Investigação: Explorar Dados Detalhados (Drill Down)"):
+            st.markdown("Use os filtros na barra lateral esquerda para isolar um Motorista ou Filial e veja o detalhamento nota a nota abaixo.")
+            
+            if not df_uni.empty:
+                # Usa a nossa função já existente para deixar a tabela bonita
+                st.dataframe(organizar_tabela(df_uni), use_container_width=True)
+            else:
+                st.info("Nenhum dado encontrado para os filtros atuais.")
     with aba2:
         if not df_danos.empty:
             st.markdown("### 📊 Análise de Danos: Top Motoristas e Filial")

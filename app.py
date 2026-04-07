@@ -226,33 +226,50 @@ try:
     with aba8:
         st.subheader("📝 Controle de Tratativas (Conexão Nuvem ☁️)")
         
-        # 1. COLE SEU LINK AQUI (Lembre-se do ?download=1 no final)
-        link_excel_nuvem = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1"
-        
-        # 2. COLOQUE O NOME EXATO DA ABA QUE VOCÊ QUER LER
-        nome_da_aba = "TOP5DANO"
-        
-        # Usamos o cache_data para ele não ficar baixando o Excel toda vez que você clicar num filtro
-        @st.cache_data(ttl=600) # O cache dura 10 minutos (600 segundos)
+        # O "Motor" de leitura do Excel (criado apenas uma vez)
+        @st.cache_data(ttl=600) # Atualiza a cada 10 minutos
         def carregar_excel_nuvem(url, aba):
-            # O parâmetro sheet_name é o que garante que ele só leia a aba certa!
-            df_nuvem = pd.read_excel(url, sheet_name=aba, engine='openpyxl')
-            return df_nuvem
+            return pd.read_excel(url, sheet_name=aba, engine='openpyxl')
 
+        # ==========================================
+        # SESSÃO 1: TRATATIVAS DE DANOS (DO SEU AMIGO)
+        # ==========================================
+        st.markdown("### 📦 Tratativas - Danos")
+        
+        # Deixei o espaço pronto para quando ele te mandar o link
+        link_amigo_danos = "COLE_O_LINK_DELE_AQUI?download=1" 
+        aba_amigo_danos = "NOME_DA_ABA_DELE"
+        
         try:
-            # Mostra um ícone de carregamento enquanto o Python vai até a Microsoft buscar os dados
-            with st.spinner("Sincronizando com o Microsoft Cloud..."):
-                df_tratativas_nuvem = carregar_excel_nuvem(link_excel_nuvem, nome_da_aba)
-            
-            st.success("✅ Conectado ao Excel Online com sucesso!")
-            
-            # Mostra a tabela na tela
-            st.dataframe(df_tratativas_nuvem, use_container_width=True)
+            with st.spinner("Sincronizando Danos com a nuvem..."):
+                df_tratativas_danos = carregar_excel_nuvem(link_amigo_danos, aba_amigo_danos)
+            st.success("✅ Tratativas de Danos conectadas com sucesso!")
+            st.dataframe(df_tratativas_danos, use_container_width=True)
             
         except Exception as e:
-            st.error("⚠️ Erro ao conectar com a nuvem.")
-            st.markdown("Verifique se o link está correto (terminando em `?download=1`), se o nome da aba está exato e se a planilha tem permissão de leitura.")
-            st.info(f"Detalhe técnico do erro para o desenvolvedor: {e}")
+            # Em vez de dar tela vermelha de erro, deixamos um aviso amarelo amigável enquanto aguarda
+            st.warning("⏳ Aguardando a inserção do link público do SharePoint para carregar os Danos.")
+
+        st.write("---") # Linha divisória charmosa
+
+        # ==========================================
+        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA)
+        # ==========================================
+        st.markdown("### 🛍️ Tratativas - Faltas")
+        
+        # O seu link já preparado com o truque do download=1 e o nome da aba exato
+        link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
+        aba_sua_faltas = "TOP 5 AREG"
+        
+        try:
+            with st.spinner("Sincronizando Faltas com a nuvem..."):
+                df_tratativas_faltas = carregar_excel_nuvem(link_sua_faltas, aba_sua_faltas)
+            st.success("✅ Tratativas de Faltas conectadas com sucesso!")
+            st.dataframe(df_tratativas_faltas, use_container_width=True)
+            
+        except Exception as e:
+            st.error("⚠️ Erro ao conectar com a sua planilha de Faltas.")
+            st.info(f"Detalhe técnico: {e}")
 
     with aba9:
         st.subheader("🚨 Dossiê de Fraudes")

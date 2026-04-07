@@ -228,17 +228,17 @@ try:
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         
-        # A SUA NOVA FUNÇÃO TURBINADA COM DISFARCE DE NAVEGADOR
+        # A NOSSA FUNÇÃO TURBINADA COM DISFARCE DE NAVEGADOR
         @st.cache_data(ttl=600)
         def carregar_excel_nuvem_turbinado(url, aba):
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            } # Deixei o disfarce ainda mais realista fingindo ser o Google Chrome no Windows!
+            }
             
             response = requests.get(url, headers=headers, allow_redirects=True)
-            response.raise_for_status() # Verifica se deu erro 403 ou 401
+            response.raise_for_status() 
             
-            # Lê o conteúdo em memória (BytesIO) e transforma em dataframe
+            # Lê o conteúdo em memória e transforma em dataframe
             df = pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
             return df
 
@@ -247,14 +247,14 @@ try:
         # ==========================================
         st.markdown("### 📦 Tratativas - Danos")
         
-        # O link do seu amigo com o ?download=1 no final
-        link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
-        aba_amigo_danos = "TOP5DANO"
+        # Substitua aqui pelo link real dele quando estiver pronto
+        link_amigo_danos = "COLE_O_LINK_DELE_AQUI?download=1" 
+        aba_amigo_danos = "NOME_DA_ABA_DELE"
         
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):
                 df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, aba_amigo_danos)
-            st.success("✅ Tratativas de Danos conectadas com sucesso via Requests!")
+            st.success("✅ Tratativas de Danos conectadas com sucesso!")
             st.dataframe(df_tratativas_danos, use_container_width=True)
             
         except Exception as e:
@@ -264,21 +264,23 @@ try:
         st.write("---") # Linha divisória
 
         # ==========================================
-        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA LOCAL)
+        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA NA NUVEM)
         # ==========================================
         st.markdown("### 🛍️ Tratativas - Faltas")
         
-        caminho_sua_faltas = r"https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
+        # O seu link do OneDrive já com o ?download=1 no final
+        link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
         aba_sua_faltas = "TOP 5 AREG"
         
         try:
-            with st.spinner("Lendo arquivo local..."):
-                df_tratativas_faltas = pd.read_excel(caminho_sua_faltas, sheet_name=aba_sua_faltas, engine='openpyxl')
-            st.success("✅ Tratativas de Faltas carregadas do seu computador!")
+            with st.spinner("Sincronizando Faltas com o OneDrive..."):
+                # Usando o exato mesmo motor, mas com os seus dados
+                df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, aba_sua_faltas)
+            st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
             st.dataframe(df_tratativas_faltas, use_container_width=True)
             
         except Exception as e:
-            st.error("⚠️ Erro inesperado ao ler a sua planilha local.")
+            st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
             st.info(f"Detalhe técnico: {e}")
 
     with aba9:

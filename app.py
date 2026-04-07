@@ -169,9 +169,35 @@ try:
         else: st.info("Sem dados de rotas para este filtro.")
 
     with aba8:
-        st.subheader("📝 Controle de Tratativas")
-        if not df_trat1_base.empty: st.dataframe(df_trat1_base, use_container_width=True, height=250)
-        if not df_trat2_base.empty: st.dataframe(df_trat2_base, use_container_width=True, height=250)
+        st.subheader("📝 Controle de Tratativas (Conexão Nuvem ☁️)")
+        
+        # 1. COLE SEU LINK AQUI (Lembre-se do ?download=1 no final)
+        link_excel_nuvem = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1"
+        
+        # 2. COLOQUE O NOME EXATO DA ABA QUE VOCÊ QUER LER
+        nome_da_aba = "TOP 5 DANO"
+        
+        # Usamos o cache_data para ele não ficar baixando o Excel toda vez que você clicar num filtro
+        @st.cache_data(ttl=600) # O cache dura 10 minutos (600 segundos)
+        def carregar_excel_nuvem(url, aba):
+            # O parâmetro sheet_name é o que garante que ele só leia a aba certa!
+            df_nuvem = pd.read_excel(url, sheet_name=aba, engine='openpyxl')
+            return df_nuvem
+
+        try:
+            # Mostra um ícone de carregamento enquanto o Python vai até a Microsoft buscar os dados
+            with st.spinner("Sincronizando com o Microsoft Cloud..."):
+                df_tratativas_nuvem = carregar_excel_nuvem(link_excel_nuvem, nome_da_aba)
+            
+            st.success("✅ Conectado ao Excel Online com sucesso!")
+            
+            # Mostra a tabela na tela
+            st.dataframe(df_tratativas_nuvem, use_container_width=True)
+            
+        except Exception as e:
+            st.error("⚠️ Erro ao conectar com a nuvem.")
+            st.markdown("Verifique se o link está correto (terminando em `?download=1`), se o nome da aba está exato e se a planilha tem permissão de leitura.")
+            st.info(f"Detalhe técnico do erro para o desenvolvedor: {e}")
 
     with aba9:
         st.subheader("🚨 Dossiê de Fraudes")

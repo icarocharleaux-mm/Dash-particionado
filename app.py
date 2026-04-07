@@ -141,7 +141,8 @@ try:
           
             ]
             
-            with aba3:
+           
+        with aba3:
         if not df_faltas.empty:
             st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
             # Usa 'Reds' para diferenciar visualmente a aba de faltas (ou mude para 'Blues' se preferir manter igual)
@@ -180,21 +181,7 @@ try:
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
             
-            # 4. Exibe a tabela redondinha na tela
-            st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
-        else:
-            st.info("Nenhum dado de dano encontrado para os filtros atuais.")
-
-    with aba3:
-        if not df_faltas.empty:
-            st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
-            fig_m = plot_top_motoristas(df_faltas, 'Reds')
-            if fig_m: st.plotly_chart(fig_m, use_container_width=True)
-            st.write("---") 
-            fig_f = plot_comparativo_filial(df_faltas, 'Reds')
-            if fig_f: st.plotly_chart(fig_f, use_container_width=True)
-        st.markdown("### 📋 Tabela Organizada - Faltas")
-        st.dataframe(organizar_tabela(df_faltas), use_container_width=True)
+        
 
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")

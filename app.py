@@ -270,7 +270,7 @@ try:
         
         # O seu link do OneDrive já com o ?download=1 no final
         link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
-        aba_sua_faltas = "TOP 5 AREG"
+        aba_sua_faltas = "TOP 5 AGREG"
         
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):

@@ -224,10 +224,10 @@ try:
         else: st.info("Sem dados de rotas para este filtro.")
 
     with aba8:
-        st.subheader("📝 Controle de Tratativas (Conexão Nuvem ☁️)")
+        st.subheader("📝 Controle de Tratativas")
         
-        # O "Motor" de leitura do Excel (criado apenas uma vez)
-        @st.cache_data(ttl=600) # Atualiza a cada 10 minutos
+        # Função para quando o link do seu amigo chegar
+        @st.cache_data(ttl=600) 
         def carregar_excel_nuvem(url, aba):
             return pd.read_excel(url, sheet_name=aba, engine='openpyxl')
 
@@ -250,25 +250,28 @@ try:
             # Em vez de dar tela vermelha de erro, deixamos um aviso amarelo amigável enquanto aguarda
             st.warning("⏳ Aguardando a inserção do link público do SharePoint para carregar os Danos.")
 
-        st.write("---") # Linha divisória charmosa
+        st.write("---") # Linha divisória
 
         # ==========================================
-        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA)
+        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA LOCAL)
         # ==========================================
         st.markdown("### 🛍️ Tratativas - Faltas")
         
-        # O seu link já preparado com o truque do download=1 e o nome da aba exato
-        link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
+        # O seu caminho local com o 'r' na frente para o Windows ler as barras \ corretamente
+        caminho_sua_faltas = r"C:\Users\RT\Downloads\NC FALTA-06-04-26_TRATATIVAS.xlsx"
         aba_sua_faltas = "TOP 5 AREG"
         
         try:
-            with st.spinner("Sincronizando Faltas com a nuvem..."):
-                df_tratativas_faltas = carregar_excel_nuvem(link_sua_faltas, aba_sua_faltas)
-            st.success("✅ Tratativas de Faltas conectadas com sucesso!")
+            with st.spinner("Lendo arquivo local..."):
+                # Lê direto do seu disco rígido
+                df_tratativas_faltas = pd.read_excel(caminho_sua_faltas, sheet_name=aba_sua_faltas, engine='openpyxl')
+            st.success("✅ Tratativas de Faltas carregadas do seu computador!")
             st.dataframe(df_tratativas_faltas, use_container_width=True)
             
+        except FileNotFoundError:
+            st.error("⚠️ Arquivo não encontrado. Verifique se a planilha ainda está na pasta Downloads com este nome exato.")
         except Exception as e:
-            st.error("⚠️ Erro ao conectar com a sua planilha de Faltas.")
+            st.error("⚠️ Erro inesperado ao ler a sua planilha de Faltas.")
             st.info(f"Detalhe técnico: {e}")
 
     with aba9:

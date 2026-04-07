@@ -258,7 +258,7 @@ try:
         st.markdown("### 🛍️ Tratativas - Faltas")
         
         # O seu caminho local com o 'r' na frente para o Windows ler as barras \ corretamente
-        caminho_sua_faltas = r"C:\Users\RT\Downloads\NC FALTA-06-04-26_TRATATIVAS.xlsx"
+        caminho_sua_faltas = r"C:\Users\RT\Downloads\NCFALTA.xlsx"
         aba_sua_faltas = "TOP 5 AREG"
         
         try:

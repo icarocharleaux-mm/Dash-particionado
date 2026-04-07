@@ -141,10 +141,44 @@ try:
           
             ]
             
+            with aba3:
+        if not df_faltas.empty:
+            st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
+            # Usa 'Reds' para diferenciar visualmente a aba de faltas (ou mude para 'Blues' se preferir manter igual)
+            fig_m = plot_top_motoristas(df_faltas, 'Reds')
+            if fig_m: st.plotly_chart(fig_m, use_container_width=True)
+            
+            st.write("---")
+            
+            fig_f = plot_comparativo_filial(df_faltas, 'Reds')
+            if fig_f: st.plotly_chart(fig_f, use_container_width=True)
+        
+        st.markdown("### 📋 Tabela Organizada - Faltas")
+        
+        if not df_faltas.empty:
+            # 1. Pega o dataframe já formatado pela sua função original
+            df_tabela_formatada = organizar_tabela(df_faltas)
+            
+            # 2. Aplica a ordem operacional solicitada
+            ordem_colunas = [
+                "Motorista", 
+                "Filial", 
+                "Quantidade", 
+                "descricao_ocorrencia", 
+                "Cliente", 
+                "Pedido", 
+                "Tipo_Ocorrencia"
+            ]
+            
             # 3. Garante que as colunas existam (evita quebra do código) e joga o resto pro final
             colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
             colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
             colunas_finais = colunas_exibicao + colunas_restantes
+            
+            # 4. Exibe a tabela redondinha na tela
+            st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
+        else:
+            st.info("Nenhum dado de falta encontrado para os filtros atuais.")
             
             # 4. Exibe a tabela redondinha na tela
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)

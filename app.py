@@ -268,7 +268,7 @@ try:
         # ==========================================
         st.markdown("### 🛍️ Tratativas - Faltas")
         
-        caminho_sua_faltas = r"C:\Users\RT\Downloads\NC FALTA-06-04-26_TRATATIVAS.xlsx"
+        caminho_sua_faltas = r"https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
         aba_sua_faltas = "TOP 5 AREG"
         
         try:

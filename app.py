@@ -248,8 +248,8 @@ try:
         st.markdown("### 📦 Tratativas - Danos")
         
         # Substitua aqui pelo link real dele quando estiver pronto
-        link_amigo_danos = "COLE_O_LINK_DELE_AQUI?download=1" 
-        aba_amigo_danos = "NOME_DA_ABA_DELE"
+        link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
+        aba_amigo_danos = "TOP5DANO"
         
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):

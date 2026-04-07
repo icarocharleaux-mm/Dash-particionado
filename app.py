@@ -249,7 +249,7 @@ try:
         
         # O link do seu amigo com o ?download=1 no final
         link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
-        aba_amigo_danos = "TOP 5 AGREG"
+        aba_amigo_danos = "TOP5DANO"
         
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):

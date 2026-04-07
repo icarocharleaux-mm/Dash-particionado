@@ -138,14 +138,22 @@ try:
                 "Cliente", 
                 "Pedido", 
                 "Tipo_Ocorrencia"
-          
             ]
             
-           
-        with aba3:
+            # 3. Garante que as colunas existam (evita quebra do código) e joga o resto pro final
+            colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
+            colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
+            colunas_finais = colunas_exibicao + colunas_restantes
+            
+            # 4. Exibe a tabela redondinha na tela
+            st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
+        else:
+            st.info("Nenhum dado de dano encontrado para os filtros atuais.")
+
+    with aba3:
         if not df_faltas.empty:
             st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
-            # Usa 'Reds' para diferenciar visualmente a aba de faltas (ou mude para 'Blues' se preferir manter igual)
+            # Usa 'Reds' para diferenciar visualmente a aba de faltas
             fig_m = plot_top_motoristas(df_faltas, 'Reds')
             if fig_m: st.plotly_chart(fig_m, use_container_width=True)
             
@@ -180,8 +188,6 @@ try:
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
-            
-        
 
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")

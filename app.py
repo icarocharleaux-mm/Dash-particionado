@@ -134,10 +134,11 @@ try:
                 "Motorista", 
                 "Filial", 
                 "Quantidade", 
-                "Descricao", 
+                "descricao_produto", 
                 "Cliente", 
                 "Pedido", 
                 "Tipo_Ocorrencia"
+          
             ]
             
             # 3. Garante que as colunas existam (evita quebra do código) e joga o resto pro final

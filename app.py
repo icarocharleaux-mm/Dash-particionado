@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px   # <--- É ESSA LINHA AQUI QUE FALTOU!
 import plotly.graph_objects as go
 import traceback
+import requests
+from io import BytesIO
 
 # --- IMPORTANDO AS CAMADAS ---
 from dados import load_data
@@ -226,29 +228,38 @@ try:
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         
-        # Função para quando o link do seu amigo chegar
-        @st.cache_data(ttl=600) 
-        def carregar_excel_nuvem(url, aba):
-            return pd.read_excel(url, sheet_name=aba, engine='openpyxl')
+        # A SUA NOVA FUNÇÃO TURBINADA COM DISFARCE DE NAVEGADOR
+        @st.cache_data(ttl=600)
+        def carregar_excel_nuvem_turbinado(url, aba):
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            } # Deixei o disfarce ainda mais realista fingindo ser o Google Chrome no Windows!
+            
+            response = requests.get(url, headers=headers, allow_redirects=True)
+            response.raise_for_status() # Verifica se deu erro 403 ou 401
+            
+            # Lê o conteúdo em memória (BytesIO) e transforma em dataframe
+            df = pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
+            return df
 
         # ==========================================
         # SESSÃO 1: TRATATIVAS DE DANOS (DO SEU AMIGO)
         # ==========================================
         st.markdown("### 📦 Tratativas - Danos")
         
-        # Deixei o espaço pronto para quando ele te mandar o link
+        # O link do seu amigo com o ?download=1 no final
         link_amigo_danos = "COLE_O_LINK_DELE_AQUI?download=1" 
         aba_amigo_danos = "NOME_DA_ABA_DELE"
         
         try:
-            with st.spinner("Sincronizando Danos com a nuvem..."):
-                df_tratativas_danos = carregar_excel_nuvem(link_amigo_danos, aba_amigo_danos)
-            st.success("✅ Tratativas de Danos conectadas com sucesso!")
+            with st.spinner("Sincronizando Danos com o SharePoint..."):
+                df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, aba_amigo_danos)
+            st.success("✅ Tratativas de Danos conectadas com sucesso via Requests!")
             st.dataframe(df_tratativas_danos, use_container_width=True)
             
         except Exception as e:
-            # Em vez de dar tela vermelha de erro, deixamos um aviso amarelo amigável enquanto aguarda
-            st.warning("⏳ Aguardando a inserção do link público do SharePoint para carregar os Danos.")
+            st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
+            st.info(f"Detalhe técnico: {e}")
 
         st.write("---") # Linha divisória
 
@@ -257,21 +268,17 @@ try:
         # ==========================================
         st.markdown("### 🛍️ Tratativas - Faltas")
         
-        # O seu caminho local com o 'r' na frente para o Windows ler as barras \ corretamente
-        caminho_sua_faltas = r"C:\Users\RT\Downloads\NCFALTA.xlsx"
+        caminho_sua_faltas = r"C:\Users\RT\Downloads\NC FALTA-06-04-26_TRATATIVAS.xlsx"
         aba_sua_faltas = "TOP 5 AREG"
         
         try:
             with st.spinner("Lendo arquivo local..."):
-                # Lê direto do seu disco rígido
                 df_tratativas_faltas = pd.read_excel(caminho_sua_faltas, sheet_name=aba_sua_faltas, engine='openpyxl')
             st.success("✅ Tratativas de Faltas carregadas do seu computador!")
             st.dataframe(df_tratativas_faltas, use_container_width=True)
             
-        except FileNotFoundError:
-            st.error("⚠️ Arquivo não encontrado. Verifique se a planilha ainda está na pasta Downloads com este nome exato.")
         except Exception as e:
-            st.error("⚠️ Erro inesperado ao ler a sua planilha de Faltas.")
+            st.error("⚠️ Erro inesperado ao ler a sua planilha local.")
             st.info(f"Detalhe técnico: {e}")
 
     with aba9:

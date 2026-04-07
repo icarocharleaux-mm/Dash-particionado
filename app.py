@@ -134,7 +134,7 @@ try:
                 "Motorista", 
                 "Filial", 
                 "Quantidade", 
-                "descricao_produto", 
+                "descricao_ocorrencia", 
                 "Cliente", 
                 "Pedido", 
                 "Tipo_Ocorrencia"

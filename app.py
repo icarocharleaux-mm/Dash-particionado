@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px   # <--- É ESSA LINHA AQUI QUE FALTOU!
+import plotly.express as px
 import plotly.graph_objects as go
 import traceback
 import requests
@@ -53,16 +53,15 @@ try:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()
 
-    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9 = st.tabs([
+    # --- LISTA DE ABAS ATUALIZADA (AGORA SÃO 10 ABAS) ---
+    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",
-        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes"
+        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação"
     ])
 
     with aba1:
-        # --- CALCULANDO AS TAXAS DO SEU AMIGO ---
         total_ocorrencias = len(df_uni)
         
-        # Evita erro de divisão por zero caso o filtro deixe a base vazia
         if total_ocorrencias > 0:
             taxa_dano = len(df_danos) / total_ocorrencias
             taxa_falta = len(df_faltas) / total_ocorrencias
@@ -72,10 +71,7 @@ try:
             taxa_falta = 0
             media_itens_por_ocorrencia = 0
 
-        # --- EXIBINDO AS MÉTRICAS COM AS PORCENTAGENS ---
         c1, c2, c3, c4 = st.columns(4)
-        
-        # O st.metric aceita um valor principal e uma "informação extra" menor embaixo
         c1.metric("Total de Ocorrências", total_ocorrencias)
         c2.metric("Ocorrências de Dano", len(df_danos), f"{taxa_dano:.1%} do Total", delta_color="off")
         c3.metric("Ocorrências de Falta", len(df_faltas), f"{taxa_falta:.1%} do Total", delta_color="off")
@@ -104,16 +100,14 @@ try:
                 fig_p = px.pie(pizza, names='Tipo_Ocorrencia', values='Quantidade', hole=0.4, color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'})
                 st.plotly_chart(fig_p, use_container_width=True)
 
-  # --- NOVO: A SANFONA DE INVESTIGAÇÃO (DRILL DOWN) ---
         st.write("---")
         with st.expander("🔎 Ferramenta de Investigação: Explorar Dados Detalhados (Drill Down)"):
             st.markdown("Use os filtros na barra lateral esquerda para isolar um Motorista ou Filial e veja o detalhamento nota a nota abaixo.")
-            
             if not df_uni.empty:
-                # Usa a nossa função já existente para deixar a tabela bonita
                 st.dataframe(organizar_tabela(df_uni), use_container_width=True)
             else:
                 st.info("Nenhum dado encontrado para os filtros atuais.")
+
     with aba2:
         if not df_danos.empty:
             st.markdown("### 📊 Análise de Danos: Top Motoristas e Filial")
@@ -128,26 +122,15 @@ try:
         st.markdown("### 📋 Tabela Organizada - Danos")
         
         if not df_danos.empty:
-            # 1. Pega o dataframe já formatado pela sua função original
             df_tabela_formatada = organizar_tabela(df_danos)
-            
-            # 2. Aplica a ordem operacional solicitada
             ordem_colunas = [
-                "Motorista", 
-                "Filial", 
-                "Quantidade", 
-                "descricao_ocorrencia", 
-                "Cliente", 
-                "Pedido", 
-                "Tipo_Ocorrencia"
+                "Motorista", "Filial", "Quantidade", "descricao_ocorrencia", 
+                "Cliente", "Pedido", "Tipo_Ocorrencia"
             ]
-            
-            # 3. Garante que as colunas existam (evita quebra do código) e joga o resto pro final
             colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
             colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
             colunas_finais = colunas_exibicao + colunas_restantes
             
-            # 4. Exibe a tabela redondinha na tela
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
         else:
             st.info("Nenhum dado de dano encontrado para os filtros atuais.")
@@ -155,7 +138,6 @@ try:
     with aba3:
         if not df_faltas.empty:
             st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
-            # Usa 'Reds' para diferenciar visualmente a aba de faltas
             fig_m = plot_top_motoristas(df_faltas, 'Reds')
             if fig_m: st.plotly_chart(fig_m, use_container_width=True)
             
@@ -167,26 +149,15 @@ try:
         st.markdown("### 📋 Tabela Organizada - Faltas")
         
         if not df_faltas.empty:
-            # 1. Pega o dataframe já formatado pela sua função original
             df_tabela_formatada = organizar_tabela(df_faltas)
-            
-            # 2. Aplica a ordem operacional solicitada
             ordem_colunas = [
-                "Motorista", 
-                "Filial", 
-                "Quantidade", 
-                "descricao_ocorrencia", 
-                "Cliente", 
-                "Pedido", 
-                "Tipo_Ocorrencia"
+                "Motorista", "Filial", "Quantidade", "descricao_ocorrencia", 
+                "Cliente", "Pedido", "Tipo_Ocorrencia"
             ]
-            
-            # 3. Garante que as colunas existam (evita quebra do código) e joga o resto pro final
             colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
             colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
             colunas_finais = colunas_exibicao + colunas_restantes
             
-            # 4. Exibe a tabela redondinha na tela
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
@@ -228,68 +199,53 @@ try:
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         
-        # A NOSSA FUNÇÃO TURBINADA COM DISFARCE DE NAVEGADOR
         @st.cache_data(ttl=600)
         def carregar_excel_nuvem_turbinado(url, aba):
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
-            
             response = requests.get(url, headers=headers, allow_redirects=True)
             response.raise_for_status() 
-            
-            # Lê o conteúdo em memória e transforma em dataframe
             df = pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
             return df
 
-        # ==========================================
-        # SESSÃO 1: TRATATIVAS DE DANOS (DO SEU AMIGO)
-        # ==========================================
+        # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")
-        
-        # O link real dele
         link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
         aba_amigo_danos = "TOP5DANO"
         
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):
                 df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, aba_amigo_danos)
+                df_tratativas_danos = df_tratativas_danos.dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
             
-            # --- NOVO: FILTRO INTERATIVO DE COLUNAS (DANOS) ---
             with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
                 todas_colunas_danos = df_tratativas_danos.columns.tolist()
                 colunas_selecionadas_danos = st.multiselect(
                     "Selecione as colunas desejadas:",
                     options=todas_colunas_danos,
-                    default=todas_colunas_danos # Por padrão, já vem tudo selecionado
+                    default=todas_colunas_danos 
                 )
-            
-            # Exibe a tabela filtrada pela escolha do usuário
             st.dataframe(df_tratativas_danos[colunas_selecionadas_danos], use_container_width=True)
             
         except Exception as e:
             st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
             st.info(f"Detalhe técnico: {e}")
 
-        st.write("---") # Linha divisória
+        st.write("---") 
 
-        # ==========================================
-        # SESSÃO 2: TRATATIVAS DE FALTAS (A SUA PLANILHA NA NUVEM)
-        # ==========================================
+        # --- SESSÃO 2: TRATATIVAS DE FALTAS ---
         st.markdown("### 🛍️ Tratativas - Faltas")
-        
-        # O seu link do OneDrive já com o ?download=1 no final
         link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
         aba_sua_faltas = "TOP 5 AGREG"
         
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):
-                # Usando o exato mesmo motor, mas com os seus dados
                 df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, aba_sua_faltas)
+                df_tratativas_faltas = df_tratativas_faltas.dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
             
-            # --- NOVO: FILTRO INTERATIVO DE COLUNAS (FALTAS) ---
             with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
                 todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
                 colunas_selecionadas_faltas = st.multiselect(
@@ -297,8 +253,6 @@ try:
                     options=todas_colunas_faltas,
                     default=todas_colunas_faltas 
                 )
-            
-            # Exibe a tabela filtrada pela escolha do usuário
             st.dataframe(df_tratativas_faltas[colunas_selecionadas_faltas], use_container_width=True)
             
         except Exception as e:
@@ -310,30 +264,27 @@ try:
         if not df_uni.empty:
             df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
             
-            # Regra 1: Volume Crítico (Ocorrência com mais de 900 itens de uma vez)
+            # Regra 1: Volume Crítico 
             f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
             f_vol['Motivo'] = 'Volume Crítico'
             
-            # Regra 2: Reclamação Idêntica (Mesmo cliente, mesma quantidade, repetidas vezes)
+            # Regra 2: Reclamação Idêntica 
             df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
             cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
             cli_susp = cli_susp[cli_susp['V'] > 1]
             f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
             f_rep['Motivo'] = 'Reclamação Idêntica'
             
-            # --- NOVA Regra 3: Motorista Suspeito (Pulverização em + de 50 clientes diferentes) ---
+            # Regra 3: Motorista Suspeito 
             mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
             lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 50]['Motorista']
-            
             f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
             f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
-            # -------------------------------------------------------------------------------------
             
             # Junta todas as regras
             alertas = pd.concat([f_vol, f_rep, f_mot])
             
             if not alertas.empty:
-                # Remove duplicidades caso a mesma ocorrência caia em mais de uma regra
                 alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
                 alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
                 
@@ -341,24 +292,31 @@ try:
                 
                 colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal']
                 df_exibicao = alertas[colunas_exibicao].copy()
-                
                 total_qtd = df_exibicao['Quantidade'].sum()
                 
                 linha_total = pd.DataFrame([{
-                    'Motivo': 'TOTAL GERAL',
-                    'Cliente': '-',
-                    'Pedido': '-',
-                    'Quantidade': total_qtd,
-                    'Tipo_Ocorrencia': '-',
-                    'Motorista': '-',
-                    'Filial': '-',
-                    'Canal': '-'
+                    'Motivo': 'TOTAL GERAL', 'Cliente': '-', 'Pedido': '-',
+                    'Quantidade': total_qtd, 'Tipo_Ocorrencia': '-', 'Motorista': '-',
+                    'Filial': '-', 'Canal': '-'
                 }])
                 
                 df_final = pd.concat([df_exibicao, linha_total], ignore_index=True)
                 st.dataframe(df_final, use_container_width=True)
             else: 
                 st.success("✅ Tudo limpo no filtro atual.")
+
+    # ==========================================
+    # NOVA ABA 10: PLANO DE AÇÃO
+    # ==========================================
+    with aba10:
+        st.subheader("📋 Plano de Ação e Diretrizes")
+        st.markdown("Siga rigorosamente as ações abaixo para mitigação de desvios e auditoria obrigatória.")
+        
+        try:
+            # Exibe a imagem salva na mesma pasta
+            st.image("plano.jpg", use_container_width=True)
+        except Exception:
+            st.error("⚠️ Arquivo 'plano.jpg' não encontrado. Certifique-se de salvar a imagem com esse nome exato na mesma pasta onde está o painel (app.py).")
 
 except Exception as e:
     st.error(f"Erro no processamento: {e}")

@@ -247,7 +247,7 @@ try:
         # ==========================================
         st.markdown("### 📦 Tratativas - Danos")
         
-        # Substitua aqui pelo link real dele quando estiver pronto
+        # O link real dele
         link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
         aba_amigo_danos = "TOP5DANO"
         
@@ -255,7 +255,18 @@ try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):
                 df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, aba_amigo_danos)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
-            st.dataframe(df_tratativas_danos, use_container_width=True)
+            
+            # --- NOVO: FILTRO INTERATIVO DE COLUNAS (DANOS) ---
+            with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
+                todas_colunas_danos = df_tratativas_danos.columns.tolist()
+                colunas_selecionadas_danos = st.multiselect(
+                    "Selecione as colunas desejadas:",
+                    options=todas_colunas_danos,
+                    default=todas_colunas_danos # Por padrão, já vem tudo selecionado
+                )
+            
+            # Exibe a tabela filtrada pela escolha do usuário
+            st.dataframe(df_tratativas_danos[colunas_selecionadas_danos], use_container_width=True)
             
         except Exception as e:
             st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
@@ -277,7 +288,18 @@ try:
                 # Usando o exato mesmo motor, mas com os seus dados
                 df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, aba_sua_faltas)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
-            st.dataframe(df_tratativas_faltas, use_container_width=True)
+            
+            # --- NOVO: FILTRO INTERATIVO DE COLUNAS (FALTAS) ---
+            with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
+                todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
+                colunas_selecionadas_faltas = st.multiselect(
+                    "Selecione as colunas desejadas:",
+                    options=todas_colunas_faltas,
+                    default=todas_colunas_faltas 
+                )
+            
+            # Exibe a tabela filtrada pela escolha do usuário
+            st.dataframe(df_tratativas_faltas[colunas_selecionadas_faltas], use_container_width=True)
             
         except Exception as e:
             st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")

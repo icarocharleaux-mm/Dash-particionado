@@ -30,42 +30,41 @@ def organizar_tabela(df_entrada):
     outras_colunas = [c for c in df.columns if c not in colunas_iniciais and str(c).lower() not in ['transportadora', 'nome_transportadora', 'desvio_logistico', 'tipo_ocorrencia', 'mes_limpo', 'mes']]
     return df[colunas_iniciais + outras_colunas]
 
-def gerar_pdf_completo(df_uni, df_danos, df_faltas):
-    # Inicializa o PDF
+# --- NOVA FUNÇÃO DE PDF DINÂMICO ---
+def gerar_pdf_dinamico(titulo, linhas_resumo, df_tabela=None):
     pdf = FPDF()
     pdf.add_page()
     
-    # --- TÍTULO ---
+    # Cabeçalho do PDF
     pdf.set_font("helvetica", "B", 16)
-    pdf.cell(0, 10, "Relatorio Gerencial: Danos e Faltas", ln=True, align="C")
-    pdf.ln(5) # Pula uma linha
-    
-    # --- RESUMO GERAL ---
-    pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 10, "1. Resumo Geral de Ocorrencias", ln=True)
-    
-    pdf.set_font("helvetica", "", 12)
-    pdf.cell(0, 10, f"Total de Ocorrencias (Danos + Faltas): {len(df_uni)}", ln=True)
-    pdf.cell(0, 10, f"- Apenas Danos: {len(df_danos)}", ln=True)
-    pdf.cell(0, 10, f"- Apenas Faltas: {len(df_faltas)}", ln=True)
+    pdf.cell(0, 10, str(titulo).encode('latin-1', 'ignore').decode('latin-1'), ln=True, align="C")
     pdf.ln(5)
     
-    # --- TOP 5 MOTORISTAS (OFENSORES) ---
-    pdf.set_font("helvetica", "B", 12)
-    pdf.cell(0, 10, "2. Top 5 Motoristas (Por volume de itens)", ln=True)
-    
+    # Linhas de Resumo/Contexto
     pdf.set_font("helvetica", "", 12)
-    if not df_uni.empty:
-        # Pega os 5 motoristas com mais itens vinculados
-        top_motoristas = df_uni.groupby('Motorista')['Quantidade'].sum().nlargest(5)
-        for motorista, quantidade in top_motoristas.items():
-            # Tratamento de string para evitar erros de codificação no FPDF
-            motorista_str = str(motorista).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(0, 8, f"{motorista_str}: {quantidade} itens", ln=True)
-    else:
-        pdf.cell(0, 10, "Sem dados suficientes para o filtro atual.", ln=True)
+    for linha in linhas_resumo:
+        pdf.cell(0, 8, str(linha).encode('latin-1', 'ignore').decode('latin-1'), ln=True)
+    pdf.ln(5)
     
-    # Retorna o PDF gerado em formato de bytes para o Streamlit baixar
+    # Tabela com Top Registros da respectiva aba
+    if df_tabela is not None and not df_tabela.empty:
+        pdf.set_font("helvetica", "B", 12)
+        pdf.cell(0, 10, "Detalhamento (Amostra dos Principais Registros)", ln=True)
+        pdf.set_font("helvetica", "B", 9)
+        
+        # Pega as primeiras 4 colunas para caber na largura da folha A4
+        colunas = list(df_tabela.columns)[:4] 
+        cabecalho = " | ".join([str(c)[:18] for c in colunas])
+        pdf.cell(0, 8, cabecalho.encode('latin-1', 'ignore').decode('latin-1'), ln=True)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        
+        pdf.set_font("helvetica", "", 9)
+        # Limita a 20 linhas para não estourar páginas desnecessariamente
+        for _, row in df_tabela.head(20).iterrows(): 
+            valores = [str(row[c])[:18] for c in colunas]
+            linha_val = " | ".join(valores)
+            pdf.cell(0, 6, linha_val.encode('latin-1', 'ignore').decode('latin-1'), ln=True)
+            
     return bytes(pdf.output())
 
 try:
@@ -92,11 +91,6 @@ try:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()
 
-    # --- GERAR PDF ÚNICO ---
-    # Geramos o arquivo apenas uma vez aqui em cima para o painel ficar rápido
-    pdf_bytes = gerar_pdf_completo(df_uni, df_danos, df_faltas)
-
-    # --- LISTA DE ABAS ATUALIZADA (AGORA SÃO 10 ABAS) ---
     aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",
         "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação"
@@ -104,7 +98,6 @@ try:
 
     with aba1:
         total_ocorrencias = len(df_uni)
-        
         if total_ocorrencias > 0:
             taxa_dano = len(df_danos) / total_ocorrencias
             taxa_falta = len(df_faltas) / total_ocorrencias
@@ -145,84 +138,65 @@ try:
 
         st.write("---")
         with st.expander("🔎 Ferramenta de Investigação: Explorar Dados Detalhados (Drill Down)"):
-            st.markdown("Use os filtros na barra lateral esquerda para isolar um Motorista ou Filial e veja o detalhamento nota a nota abaixo.")
-            if not df_uni.empty:
-                st.dataframe(organizar_tabela(df_uni), use_container_width=True)
-            else:
-                st.info("Nenhum dado encontrado para os filtros atuais.")
+            if not df_uni.empty: st.dataframe(organizar_tabela(df_uni), use_container_width=True)
+            else: st.info("Nenhum dado encontrado para os filtros atuais.")
                 
+        # Exportar Aba 1
         st.write("---")
-        st.markdown("### 📄 Exportar Relatório PDF")
-        st.markdown("Baixe um resumo com os dados que você filtrou na barra lateral.")
-        
-        # Botão na Aba 1 (Precisa da key='pdf_aba1')
-        st.download_button(
-            label="📥 Baixar Relatório (PDF)",
-            data=pdf_bytes,
-            file_name="Relatorio_Logistica.pdf",
-            mime="application/pdf",
-            key="pdf_aba1"
-        )
+        top_geral = df_uni.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_uni.empty else None
+        resumo_1 = [f"Total Geral: {total_ocorrencias} ocorrencias", f"Danos: {len(df_danos)}", f"Faltas: {len(df_faltas)}"]
+        pdf_aba1 = gerar_pdf_dinamico("Relatorio - Visao Geral", resumo_1, top_geral)
+        st.download_button("📄 Baixar Relatório: Visão Geral (PDF)", data=pdf_aba1, file_name="Visao_Geral.pdf", mime="application/pdf", key="pdf_aba1")
 
     with aba2:
         if not df_danos.empty:
             st.markdown("### 📊 Análise de Danos: Top Motoristas e Filial")
             fig_m = plot_top_motoristas(df_danos, 'Blues')
             if fig_m: st.plotly_chart(fig_m, use_container_width=True)
-            
             st.write("---")
-            
             fig_f = plot_comparativo_filial(df_danos, 'Blues')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
         
         st.markdown("### 📋 Tabela Organizada - Danos")
-        
         if not df_danos.empty:
             df_tabela_formatada = organizar_tabela(df_danos)
-            ordem_colunas = [
-                "Motorista", "Filial", "Quantidade", "descricao_ocorrencia", 
-                "Cliente", "Pedido", "Tipo_Ocorrencia"
-            ]
-            colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
-            colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
-            colunas_finais = colunas_exibicao + colunas_restantes
-            
-            st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
+            colunas_exibicao = [c for c in ["Motorista", "Filial", "Quantidade", "descricao_ocorrencia", "Cliente", "Pedido", "Tipo_Ocorrencia"] if c in df_tabela_formatada.columns]
+            df_exibicao = df_tabela_formatada[colunas_exibicao + [c for c in df_tabela_formatada.columns if c not in colunas_exibicao]]
+            st.dataframe(df_exibicao, use_container_width=True)
         else:
             st.info("Nenhum dado de dano encontrado para os filtros atuais.")
             
+        # Exportar Aba 2
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba2")
+        top_danos = df_danos.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_danos.empty else None
+        resumo_2 = [f"Ocorrencias Exclusivas de Dano: {len(df_danos)} registros vinculados."]
+        pdf_aba2 = gerar_pdf_dinamico("Relatorio - Somente Danos", resumo_2, top_danos)
+        st.download_button("📄 Baixar Relatório: Danos (PDF)", data=pdf_aba2, file_name="Relatorio_Danos.pdf", mime="application/pdf", key="pdf_aba2")
 
     with aba3:
         if not df_faltas.empty:
             st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
             fig_m = plot_top_motoristas(df_faltas, 'Reds')
             if fig_m: st.plotly_chart(fig_m, use_container_width=True)
-            
             st.write("---")
-            
             fig_f = plot_comparativo_filial(df_faltas, 'Reds')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
         
         st.markdown("### 📋 Tabela Organizada - Faltas")
-        
         if not df_faltas.empty:
             df_tabela_formatada = organizar_tabela(df_faltas)
-            ordem_colunas = [
-                "Motorista", "Filial", "Quantidade", "descricao_ocorrencia", 
-                "Cliente", "Pedido", "Tipo_Ocorrencia"
-            ]
-            colunas_exibicao = [col for col in ordem_colunas if col in df_tabela_formatada.columns]
-            colunas_restantes = [col for col in df_tabela_formatada.columns if col not in colunas_exibicao]
-            colunas_finais = colunas_exibicao + colunas_restantes
-            
-            st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
+            colunas_exibicao = [c for c in ["Motorista", "Filial", "Quantidade", "descricao_ocorrencia", "Cliente", "Pedido", "Tipo_Ocorrencia"] if c in df_tabela_formatada.columns]
+            df_exibicao = df_tabela_formatada[colunas_exibicao + [c for c in df_tabela_formatada.columns if c not in colunas_exibicao]]
+            st.dataframe(df_exibicao, use_container_width=True)
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
             
+        # Exportar Aba 3
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba3")
+        top_faltas = df_faltas.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_faltas.empty else None
+        resumo_3 = [f"Ocorrencias Exclusivas de Falta (NC): {len(df_faltas)} registros vinculados."]
+        pdf_aba3 = gerar_pdf_dinamico("Relatorio - Somente Faltas", resumo_3, top_faltas)
+        st.download_button("📄 Baixar Relatório: Faltas (PDF)", data=pdf_aba3, file_name="Relatorio_Faltas.pdf", mime="application/pdf", key="pdf_aba3")
 
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")
@@ -232,8 +206,11 @@ try:
             st.dataframe(df_abc, use_container_width=True)
         else: st.info("Aguardando dados filtrados para calcular a Curva ABC.")
         
+        # Exportar Aba 4
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba4")
+        resumo_4 = ["Classificacao de ofensores pelo metodo ABC (Filtro aplicado na lateral)."]
+        pdf_aba4 = gerar_pdf_dinamico("Relatorio - Curva ABC", resumo_4, df_abc)
+        st.download_button("📄 Baixar Relatório: Curva ABC (PDF)", data=pdf_aba4, file_name="Curva_ABC.pdf", mime="application/pdf", key="pdf_aba4")
 
     with aba5:
         st.subheader("🔄 Histórico Mensal de Ofensores (Motoristas)")
@@ -244,17 +221,23 @@ try:
             st.dataframe(df_recor_m, use_container_width=True)
         else: st.info("Ajuste os filtros para visualizar a recorrência.")
         
+        # Exportar Aba 5
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba5")
+        resumo_5 = ["Acompanhamento dos Motoristas com maior reincidencia nos ultimos meses."]
+        pdf_aba5 = gerar_pdf_dinamico("Recorrencia - Motoristas", resumo_5, df_recor_m)
+        st.download_button("📄 Baixar Relatório: Recor. Motorista (PDF)", data=pdf_aba5, file_name="Recorrencia_Motoristas.pdf", mime="application/pdf", key="pdf_aba5")
 
     with aba6:
         st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
-        fig_heat_c, _ = plot_heatmap_recorrencia(df_uni, 'Cliente')
+        fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente') # Corrigido captura do df
         if fig_heat_c: st.plotly_chart(fig_heat_c, use_container_width=True)
         else: st.info("Nenhum cliente válido para análise na seleção atual.")
         
+        # Exportar Aba 6
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba6")
+        resumo_6 = ["Acompanhamento dos Clientes com maior volume de ocorrencias reincidentes."]
+        pdf_aba6 = gerar_pdf_dinamico("Recorrencia - Clientes", resumo_6, df_recor_c if fig_heat_c else None)
+        st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
     with aba7:
         st.subheader("🗺️ Mapeamento Geográfico")
@@ -267,139 +250,94 @@ try:
             st.dataframe(df_tab_rotas, use_container_width=True)
         else: st.info("Sem dados de rotas para este filtro.")
         
+        # Exportar Aba 7
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba7")
+        resumo_7 = ["Volume de itens perdidos/danificados por rota de entrega."]
+        pdf_aba7 = gerar_pdf_dinamico("Rotas Logisticas Ofensoras", resumo_7, df_tab_rotas)
+        st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
 
     with aba8:
         st.subheader("📝 Controle de Tratativas")
-        
         @st.cache_data(ttl=600)
         def carregar_excel_nuvem_turbinado(url, aba):
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             response = requests.get(url, headers=headers, allow_redirects=True)
             response.raise_for_status() 
-            df = pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
-            return df
+            return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
 
-        # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")
         link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
-        aba_amigo_danos = "TOP5DANO"
-        
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):
-                df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, aba_amigo_danos)
-                df_tratativas_danos = df_tratativas_danos.dropna(how='all').head(5).reset_index(drop=True)
+                df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, "TOP5DANO").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
-            
-            with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
-                todas_colunas_danos = df_tratativas_danos.columns.tolist()
-                colunas_selecionadas_danos = st.multiselect(
-                    "Selecione as colunas desejadas:",
-                    options=todas_colunas_danos,
-                    default=todas_colunas_danos 
-                )
-            st.dataframe(df_tratativas_danos[colunas_selecionadas_danos], use_container_width=True)
-            
-        except Exception as e:
-            st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
-            st.info(f"Detalhe técnico: {e}")
+            st.dataframe(df_tratativas_danos, use_container_width=True)
+        except Exception: df_tratativas_danos = None
 
         st.write("---") 
 
-        # --- SESSÃO 2: TRATATIVAS DE FALTAS ---
         st.markdown("### 🛍️ Tratativas - Faltas")
         link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
-        aba_sua_faltas = "TOP 5 AGREG"
-        
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):
-                df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, aba_sua_faltas)
-                df_tratativas_faltas = df_tratativas_faltas.dropna(how='all').head(5).reset_index(drop=True)
+                df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, "TOP 5 AGREG").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
+            st.dataframe(df_tratativas_faltas, use_container_width=True)
+        except Exception: df_tratativas_faltas = None
             
-            with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
-                todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
-                colunas_selecionadas_faltas = st.multiselect(
-                    "Selecione as colunas desejadas:",
-                    options=todas_colunas_faltas,
-                    default=todas_colunas_faltas 
-                )
-            st.dataframe(df_tratativas_faltas[colunas_selecionadas_faltas], use_container_width=True)
-            
-        except Exception as e:
-            st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
-            st.info(f"Detalhe técnico: {e}")
-            
+        # Exportar Aba 8
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba8")
+        resumo_8 = ["Extracao rapida do controle online de tratativas e ressarcimentos."]
+        df_pdf_8 = df_tratativas_danos if df_tratativas_danos is not None else df_tratativas_faltas
+        pdf_aba8 = gerar_pdf_dinamico("Controle de Tratativas (Nuveem)", resumo_8, df_pdf_8)
+        st.download_button("📄 Baixar Relatório: Tratativas (PDF)", data=pdf_aba8, file_name="Controle_Tratativas.pdf", mime="application/pdf", key="pdf_aba8")
 
     with aba9:
         st.subheader("🚨 Dossiê de Fraudes")
+        alertas = pd.DataFrame()
         if not df_uni.empty:
             df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
-            
-            # Regra 1: Volume Crítico 
             f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
             f_vol['Motivo'] = 'Volume Crítico'
             
-            # Regra 2: Reclamação Idêntica 
             df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
             cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
             cli_susp = cli_susp[cli_susp['V'] > 1]
             f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
             f_rep['Motivo'] = 'Reclamação Idêntica'
             
-            # Regra 3: Motorista Suspeito 
             mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
             lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 50]['Motorista']
             f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
             f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
             
-            # Junta todas as regras
             alertas = pd.concat([f_vol, f_rep, f_mot])
-            
             if not alertas.empty:
                 alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
                 alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
-                
                 st.error(f"⚠️ {len(alertas)} Indícios Detectados")
-                
                 colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal']
                 df_exibicao = alertas[colunas_exibicao].copy()
-                total_qtd = df_exibicao['Quantidade'].sum()
+                st.dataframe(df_exibicao, use_container_width=True)
+            else: st.success("✅ Tudo limpo no filtro atual.")
                 
-                linha_total = pd.DataFrame([{
-                    'Motivo': 'TOTAL GERAL', 'Cliente': '-', 'Pedido': '-',
-                    'Quantidade': total_qtd, 'Tipo_Ocorrencia': '-', 'Motorista': '-',
-                    'Filial': '-', 'Canal': '-'
-                }])
-                
-                df_final = pd.concat([df_exibicao, linha_total], ignore_index=True)
-                st.dataframe(df_final, use_container_width=True)
-            else: 
-                st.success("✅ Tudo limpo no filtro atual.")
-                
+        # Exportar Aba 9
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba9")
+        resumo_9 = [f"Total de alertas do sistema: {len(alertas)} anomalias."]
+        pdf_aba9 = gerar_pdf_dinamico("Dossie de Fraude e Alertas", resumo_9, alertas)
+        st.download_button("📄 Baixar Relatório: Fraudes (PDF)", data=pdf_aba9, file_name="Dossie_Fraudes.pdf", mime="application/pdf", key="pdf_aba9")
 
-    # ==========================================
-    # NOVA ABA 10: PLANO DE AÇÃO
-    # ==========================================
     with aba10:
         st.subheader("📋 Plano de Ação e Diretrizes")
         st.markdown("Siga rigorosamente as ações abaixo para mitigação de desvios e auditoria obrigatória.")
-        
-        try:
-            # Exibe a imagem salva na mesma pasta
-            st.image("plano.jpg", use_container_width=True)
-        except Exception:
-            st.error("⚠️ Arquivo 'plano.jpg' não encontrado. Certifique-se de salvar a imagem com esse nome exato na mesma pasta onde está o painel (app.py).")
+        try: st.image("plano.jpg", use_container_width=True)
+        except Exception: st.error("⚠️ Arquivo 'plano.jpg' não encontrado.")
             
+        # Exportar Aba 10
         st.write("---")
-        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba10")
+        resumo_10 = ["Gestao Operacional e Qualidade", "- Foco: 5 Filiais mais ofensoras", "- Data Referencia: 25/03/2026"]
+        pdf_aba10 = gerar_pdf_dinamico("Plano de Acao Logistico", resumo_10, None)
+        st.download_button("📄 Baixar Relatório: Plano (PDF)", data=pdf_aba10, file_name="Plano_Acao.pdf", mime="application/pdf", key="pdf_aba10")
 
 except Exception as e:
     st.error(f"Erro no processamento: {e}")

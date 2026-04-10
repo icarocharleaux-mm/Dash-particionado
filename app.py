@@ -92,6 +92,10 @@ try:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()
 
+    # --- GERAR PDF ÚNICO ---
+    # Geramos o arquivo apenas uma vez aqui em cima para o painel ficar rápido
+    pdf_bytes = gerar_pdf_completo(df_uni, df_danos, df_faltas)
+
     # --- LISTA DE ABAS ATUALIZADA (AGORA SÃO 10 ABAS) ---
     aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",
@@ -147,17 +151,17 @@ try:
             else:
                 st.info("Nenhum dado encontrado para os filtros atuais.")
                 
-        # --- NOVO: BOTÃO DE EXPORTAR PDF ---
         st.write("---")
         st.markdown("### 📄 Exportar Relatório PDF")
         st.markdown("Baixe um resumo com os dados que você filtrou na barra lateral.")
         
-        pdf_bytes = gerar_pdf_completo(df_uni, df_danos, df_faltas)
+        # Botão na Aba 1 (Precisa da key='pdf_aba1')
         st.download_button(
             label="📥 Baixar Relatório (PDF)",
             data=pdf_bytes,
             file_name="Relatorio_Logistica.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
+            key="pdf_aba1"
         )
 
     with aba2:
@@ -186,6 +190,9 @@ try:
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
         else:
             st.info("Nenhum dado de dano encontrado para os filtros atuais.")
+            
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba2")
 
     with aba3:
         if not df_faltas.empty:
@@ -213,6 +220,9 @@ try:
             st.dataframe(df_tabela_formatada[colunas_finais], use_container_width=True)
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
+            
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba3")
 
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")
@@ -221,6 +231,9 @@ try:
             st.plotly_chart(fig_abc, use_container_width=True)
             st.dataframe(df_abc, use_container_width=True)
         else: st.info("Aguardando dados filtrados para calcular a Curva ABC.")
+        
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba4")
 
     with aba5:
         st.subheader("🔄 Histórico Mensal de Ofensores (Motoristas)")
@@ -230,12 +243,18 @@ try:
             st.markdown("**📋 Motoristas Reincidentes:**")
             st.dataframe(df_recor_m, use_container_width=True)
         else: st.info("Ajuste os filtros para visualizar a recorrência.")
+        
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba5")
 
     with aba6:
         st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
         fig_heat_c, _ = plot_heatmap_recorrencia(df_uni, 'Cliente')
         if fig_heat_c: st.plotly_chart(fig_heat_c, use_container_width=True)
         else: st.info("Nenhum cliente válido para análise na seleção atual.")
+        
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba6")
 
     with aba7:
         st.subheader("🗺️ Mapeamento Geográfico")
@@ -247,6 +266,9 @@ try:
             st.info("💡 As rotas filtradas não têm coordenadas cadastradas. Mostrando apenas a tabela:")
             st.dataframe(df_tab_rotas, use_container_width=True)
         else: st.info("Sem dados de rotas para este filtro.")
+        
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba7")
 
     with aba8:
         st.subheader("📝 Controle de Tratativas")
@@ -310,6 +332,9 @@ try:
         except Exception as e:
             st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
             st.info(f"Detalhe técnico: {e}")
+            
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba8")
 
     with aba9:
         st.subheader("🚨 Dossiê de Fraudes")
@@ -356,6 +381,9 @@ try:
                 st.dataframe(df_final, use_container_width=True)
             else: 
                 st.success("✅ Tudo limpo no filtro atual.")
+                
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba9")
 
     # ==========================================
     # NOVA ABA 10: PLANO DE AÇÃO
@@ -369,6 +397,9 @@ try:
             st.image("plano.jpg", use_container_width=True)
         except Exception:
             st.error("⚠️ Arquivo 'plano.jpg' não encontrado. Certifique-se de salvar a imagem com esse nome exato na mesma pasta onde está o painel (app.py).")
+            
+        st.write("---")
+        st.download_button("📄 Baixar Relatório PDF", data=pdf_bytes, file_name="Relatorio_Logistica.pdf", mime="application/pdf", key="pdf_aba10")
 
 except Exception as e:
     st.error(f"Erro no processamento: {e}")

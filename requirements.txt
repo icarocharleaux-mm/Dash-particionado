@@ -1,4 +1,6 @@
-pandas
 streamlit
+pandas
 plotly
+requests
 openpyxl
+fpdf2

@@ -30,6 +30,44 @@ def organizar_tabela(df_entrada):
     outras_colunas = [c for c in df.columns if c not in colunas_iniciais and str(c).lower() not in ['transportadora', 'nome_transportadora', 'desvio_logistico', 'tipo_ocorrencia', 'mes_limpo', 'mes']]
     return df[colunas_iniciais + outras_colunas]
 
+def gerar_pdf_completo(df_uni, df_danos, df_faltas):
+    # Inicializa o PDF
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # --- TÍTULO ---
+    pdf.set_font("helvetica", "B", 16)
+    pdf.cell(0, 10, "Relatorio Gerencial: Danos e Faltas", ln=True, align="C")
+    pdf.ln(5) # Pula uma linha
+    
+    # --- RESUMO GERAL ---
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 10, "1. Resumo Geral de Ocorrencias", ln=True)
+    
+    pdf.set_font("helvetica", "", 12)
+    pdf.cell(0, 10, f"Total de Ocorrencias (Danos + Faltas): {len(df_uni)}", ln=True)
+    pdf.cell(0, 10, f"- Apenas Danos: {len(df_danos)}", ln=True)
+    pdf.cell(0, 10, f"- Apenas Faltas: {len(df_faltas)}", ln=True)
+    pdf.ln(5)
+    
+    # --- TOP 5 MOTORISTAS (OFENSORES) ---
+    pdf.set_font("helvetica", "B", 12)
+    pdf.cell(0, 10, "2. Top 5 Motoristas (Por volume de itens)", ln=True)
+    
+    pdf.set_font("helvetica", "", 12)
+    if not df_uni.empty:
+        # Pega os 5 motoristas com mais itens vinculados
+        top_motoristas = df_uni.groupby('Motorista')['Quantidade'].sum().nlargest(5)
+        for motorista, quantidade in top_motoristas.items():
+            # Tratamento de string para evitar erros de codificação no FPDF
+            motorista_str = str(motorista).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(0, 8, f"{motorista_str}: {quantidade} itens", ln=True)
+    else:
+        pdf.cell(0, 10, "Sem dados suficientes para o filtro atual.", ln=True)
+    
+    # Retorna o PDF gerado em formato de bytes para o Streamlit baixar
+    return bytes(pdf.output())
+
 try:
     # 1. DADOS: Extração
     df_danos_base, df_faltas_base, df_uni_base, df_mapa_agg, df_coord_agg, df_trat1_base, df_trat2_base = load_data()
@@ -108,6 +146,19 @@ try:
                 st.dataframe(organizar_tabela(df_uni), use_container_width=True)
             else:
                 st.info("Nenhum dado encontrado para os filtros atuais.")
+                
+        # --- NOVO: BOTÃO DE EXPORTAR PDF ---
+        st.write("---")
+        st.markdown("### 📄 Exportar Relatório PDF")
+        st.markdown("Baixe um resumo com os dados que você filtrou na barra lateral.")
+        
+        pdf_bytes = gerar_pdf_completo(df_uni, df_danos, df_faltas)
+        st.download_button(
+            label="📥 Baixar Relatório (PDF)",
+            data=pdf_bytes,
+            file_name="Relatorio_Logistica.pdf",
+            mime="application/pdf"
+        )
 
     with aba2:
         if not df_danos.empty:

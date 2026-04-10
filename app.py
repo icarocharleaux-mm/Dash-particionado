@@ -258,6 +258,7 @@ try:
 
     with aba8:
         st.subheader("📝 Controle de Tratativas")
+        
         @st.cache_data(ttl=600)
         def carregar_excel_nuvem_turbinado(url, aba):
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -265,33 +266,75 @@ try:
             response.raise_for_status() 
             return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
 
+        # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")
         link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
+        df_exibicao_danos = None
+        
         try:
             with st.spinner("Sincronizando Danos com o SharePoint..."):
                 df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, "TOP5DANO").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
-            st.dataframe(df_tratativas_danos, use_container_width=True)
-        except Exception: df_tratativas_danos = None
+            
+            with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
+                todas_colunas_danos = df_tratativas_danos.columns.tolist()
+                colunas_selecionadas_danos = st.multiselect(
+                    "Selecione as colunas desejadas:",
+                    options=todas_colunas_danos,
+                    default=todas_colunas_danos,
+                    key="multi_danos"
+                )
+            
+            df_exibicao_danos = df_tratativas_danos[colunas_selecionadas_danos]
+            st.dataframe(df_exibicao_danos, use_container_width=True)
+            
+        except Exception as e:
+            st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
+            st.info(f"Detalhe técnico: {e}")
 
         st.write("---") 
 
+        # --- SESSÃO 2: TRATATIVAS DE FALTAS ---
         st.markdown("### 🛍️ Tratativas - Faltas")
         link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
+        df_exibicao_faltas = None
+        
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):
                 df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, "TOP 5 AGREG").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
-            st.dataframe(df_tratativas_faltas, use_container_width=True)
-        except Exception: df_tratativas_faltas = None
             
-        # Exportar Aba 8
+            with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
+                todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
+                colunas_selecionadas_faltas = st.multiselect(
+                    "Selecione as colunas desejadas:",
+                    options=todas_colunas_faltas,
+                    default=todas_colunas_faltas,
+                    key="multi_faltas"
+                )
+                
+            df_exibicao_faltas = df_tratativas_faltas[colunas_selecionadas_faltas]
+            st.dataframe(df_exibicao_faltas, use_container_width=True)
+            
+        except Exception as e:
+            st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
+            st.info(f"Detalhe técnico: {e}")
+            
+        # --- EXPORTAR ABA 8 ---
         st.write("---")
         resumo_8 = ["Extracao rapida do controle online de tratativas e ressarcimentos."]
-        df_pdf_8 = df_tratativas_danos if df_tratativas_danos is not None else df_tratativas_faltas
-        pdf_aba8 = gerar_pdf_dinamico("Controle de Tratativas (Nuveem)", resumo_8, df_pdf_8)
-        st.download_button("📄 Baixar Relatório: Tratativas (PDF)", data=pdf_aba8, file_name="Controle_Tratativas.pdf", mime="application/pdf", key="pdf_aba8")
-
+        
+        # Envia para o PDF a tabela já com as colunas filtradas pelo usuário
+        df_pdf_8 = df_exibicao_danos if df_exibicao_danos is not None else df_exibicao_faltas
+        
+        pdf_aba8 = gerar_pdf_dinamico("Controle de Tratativas (Nuvem)", resumo_8, df_pdf_8)
+        st.download_button(
+            label="📄 Baixar Relatório: Tratativas (PDF)", 
+            data=pdf_aba8, 
+            file_name="Controle_Tratativas.pdf", 
+            mime="application/pdf", 
+            key="pdf_aba8"
+        )
     with aba9:
         st.subheader("🚨 Dossiê de Fraudes")
         alertas = pd.DataFrame()

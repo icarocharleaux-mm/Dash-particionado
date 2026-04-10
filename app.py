@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import traceback
 import requests
+from fpdf import FPDF
 from io import BytesIO
 
 # --- IMPORTANDO AS CAMADAS ---

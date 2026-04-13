@@ -27,7 +27,7 @@ def organizar_tabela(df_entrada):
     df = df_entrada.copy()
     colunas_iniciais = ['Cliente', 'Empresa', 'Canal', 'Motorista', 'Filial', 'Pedido', 'Quantidade', 'Rota']
     colunas_iniciais = [c for c in colunas_iniciais if c in df.columns]
-    outras_colunas = [c for c in df.columns if c not in colunas_iniciais and str(c).lower() not in ['transportadora', 'nome_transportadora', 'desvio_logistico', 'tipo_ocorrencia', 'mes_limpo', 'mes']]
+    outras_colunas = [c for c in df.columns if c not in colunas_iniciais and str(c).lower() not in ['transportadora', 'nome_transportadora', 'desvio_logistico', 'tipo_ocorrencia', 'mes_limpo', 'mes', 'data_filtro']]
     return df[colunas_iniciais + outras_colunas]
 
 # --- NOVA FUNÇÃO DE PDF DINÂMICO ---
@@ -136,6 +136,18 @@ try:
                 fig_p = px.pie(pizza, names='Tipo_Ocorrencia', values='Quantidade', hole=0.4, color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'})
                 st.plotly_chart(fig_p, use_container_width=True)
 
+        # ==========================================
+        # NOVO GRÁFICO DE CATEGORIAS - VISÃO GERAL
+        # ==========================================
+        st.write("---")
+        st.markdown("**🏷️ Top 10 Categorias Afetadas (Geral)**")
+        if not df_uni.empty and 'Categoria' in df_uni.columns:
+            cat_ranking = df_uni.groupby('Categoria')['Quantidade'].sum().nlargest(10).reset_index()
+            fig_cat1 = px.bar(cat_ranking, x='Quantidade', y='Categoria', orientation='h', 
+                              color='Quantidade', color_continuous_scale='Viridis', text_auto='.0f')
+            fig_cat1.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+            st.plotly_chart(fig_cat1, use_container_width=True)
+
         st.write("---")
         with st.expander("🔎 Ferramenta de Investigação: Explorar Dados Detalhados (Drill Down)"):
             if not df_uni.empty: st.dataframe(organizar_tabela(df_uni), use_container_width=True)
@@ -156,6 +168,18 @@ try:
             st.write("---")
             fig_f = plot_comparativo_filial(df_danos, 'Blues')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
+            
+            # ==========================================
+            # NOVO GRÁFICO DE CATEGORIAS - SÓ DANOS
+            # ==========================================
+            st.write("---")
+            st.markdown("### 🏷️ Categorias com Mais Danos")
+            if 'Categoria' in df_danos.columns:
+                cat_danos = df_danos.groupby('Categoria')['Quantidade'].sum().nlargest(10).reset_index()
+                fig_cat2 = px.bar(cat_danos, x='Quantidade', y='Categoria', orientation='h', 
+                                  color='Quantidade', color_continuous_scale='Blues', text_auto='.0f')
+                fig_cat2.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                st.plotly_chart(fig_cat2, use_container_width=True)
         
         st.markdown("### 📋 Tabela Organizada - Danos")
         if not df_danos.empty:
@@ -181,6 +205,18 @@ try:
             st.write("---")
             fig_f = plot_comparativo_filial(df_faltas, 'Reds')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
+            
+            # ==========================================
+            # NOVO GRÁFICO DE CATEGORIAS - SÓ FALTAS
+            # ==========================================
+            st.write("---")
+            st.markdown("### 🏷️ Categorias com Mais Faltas")
+            if 'Categoria' in df_faltas.columns:
+                cat_faltas = df_faltas.groupby('Categoria')['Quantidade'].sum().nlargest(10).reset_index()
+                fig_cat3 = px.bar(cat_faltas, x='Quantidade', y='Categoria', orientation='h', 
+                                  color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+                fig_cat3.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                st.plotly_chart(fig_cat3, use_container_width=True)
         
         st.markdown("### 📋 Tabela Organizada - Faltas")
         if not df_faltas.empty:

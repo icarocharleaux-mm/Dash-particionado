@@ -11,7 +11,7 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
         outlier_limite = st.slider("🚫 Ocultar registos acima de (Outliers):", 1, max_itens, max_itens)
         st.divider()
         
-        # --- 1. CAIXAS DE SELEÇÃO PRIMEIRO (Empurra o calendário para baixo) ---
+        # --- 1. CAIXAS DE SELEÇÃO PRIMEIRO ---
         opcoes_filial = sorted(df_uni_base["Filial"].dropna().unique())
         opcoes_motorista = sorted(df_uni_base["Motorista"].dropna().unique())
         opcoes_empresa = sorted([str(x) for x in df_uni_base["Empresa"].dropna().unique() if str(x) not in ['Não Identificado', 'N/A']])
@@ -24,8 +24,8 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
 
         st.divider()
 
-        # --- 2. CALENDÁRIO NO FINAL (Garante espaço para o pop-up abrir) ---
-        if not df_uni_base.empty and not df_uni_base['Data_Filtro'].dropna().empty:
+        # --- 2. CALENDÁRIO ---
+        if not df_uni_base.empty and 'Data_Filtro' in df_uni_base.columns and not df_uni_base['Data_Filtro'].dropna().empty:
             min_date = df_uni_base['Data_Filtro'].dropna().min().date()
             max_date = df_uni_base['Data_Filtro'].dropna().max().date()
             if min_date == max_date:
@@ -43,6 +43,12 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
         )
 
     # --- 3. APLICANDO AS REGRAS MATEMÁTICAS ---
+    
+    # GARANTIA FINAL: Força a conversão das bases na hora do recorte para evitar bugs de tipo
+    if 'Data_Filtro' in df_uni_base.columns: df_uni_base["Data_Filtro"] = pd.to_datetime(df_uni_base["Data_Filtro"], errors='coerce')
+    if 'Data_Filtro' in df_danos_base.columns: df_danos_base["Data_Filtro"] = pd.to_datetime(df_danos_base["Data_Filtro"], errors='coerce')
+    if 'Data_Filtro' in df_faltas_base.columns: df_faltas_base["Data_Filtro"] = pd.to_datetime(df_faltas_base["Data_Filtro"], errors='coerce')
+
     df_uni = df_uni_base[df_uni_base["Quantidade"] <= outlier_limite].copy()
     df_danos = df_danos_base[df_danos_base["Quantidade"] <= outlier_limite].copy()
     df_faltas = df_faltas_base[df_faltas_base["Quantidade"] <= outlier_limite].copy()
@@ -51,12 +57,14 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
     if isinstance(datas_selecionadas, tuple) and len(datas_selecionadas) == 2:
         start_date, end_date = datas_selecionadas
         t_start = pd.to_datetime(start_date)
-        # CRUCIAL: Adiciona 23h59m59s na data final para não cortar as ocorrências do último dia
         t_end = pd.to_datetime(end_date) + pd.Timedelta(hours=23, minutes=59, seconds=59)
         
-        df_uni = df_uni[(df_uni['Data_Filtro'] >= t_start) & (df_uni['Data_Filtro'] <= t_end)]
-        df_danos = df_danos[(df_danos['Data_Filtro'] >= t_start) & (df_danos['Data_Filtro'] <= t_end)]
-        df_faltas = df_faltas[(df_faltas['Data_Filtro'] >= t_start) & (df_faltas['Data_Filtro'] <= t_end)]
+        if 'Data_Filtro' in df_uni.columns: 
+            df_uni = df_uni[(df_uni['Data_Filtro'] >= t_start) & (df_uni['Data_Filtro'] <= t_end)]
+        if 'Data_Filtro' in df_danos.columns: 
+            df_danos = df_danos[(df_danos['Data_Filtro'] >= t_start) & (df_danos['Data_Filtro'] <= t_end)]
+        if 'Data_Filtro' in df_faltas.columns: 
+            df_faltas = df_faltas[(df_faltas['Data_Filtro'] >= t_start) & (df_faltas['Data_Filtro'] <= t_end)]
 
     # Demais Filtros...
     if motorista_sel is not None:

@@ -49,9 +49,11 @@ def load_data():
         
         if 'Data_Original' in df_danos.columns:
             df_danos['Periodo'] = df_danos['Data_Original'].apply(processar_mes)
+            df_danos['Data_Filtro'] = pd.to_datetime(df_danos['Data_Original'], dayfirst=True, errors='coerce')
         else:
             print("⚠️ [DEBUG] Coluna 'data_ref' NÃO FOI ENCONTRADA nos Danos. Colunas lidas:", df_danos.columns.tolist())
             df_danos['Periodo'] = 'Não Identificado'
+            df_danos['Data_Filtro'] = pd.NaT
             
         df_danos['Tipo_Ocorrencia'] = 'Dano'
         df_danos['Canal'] = 'N/A'
@@ -77,9 +79,11 @@ def load_data():
 
         if 'Mes_Original' in df_faltas.columns:
             df_faltas['Periodo'] = df_faltas['Mes_Original'].apply(processar_mes)
+            df_faltas['Data_Filtro'] = pd.to_datetime(df_faltas['Mes_Original'], dayfirst=True, errors='coerce')
         else:
             print("⚠️ [DEBUG] Coluna 'mes' NÃO FOI ENCONTRADA nas Faltas. Colunas lidas:", df_faltas.columns.tolist())
             df_faltas['Periodo'] = 'Não Identificado'
+            df_faltas['Data_Filtro'] = pd.NaT
             
         df_faltas['Tipo_Ocorrencia'] = 'Falta'
         df_faltas['Empresa'] = 'NATURA'
@@ -90,13 +94,19 @@ def load_data():
     # ==========================================
     # 3. UNIFICAR E BLINDAR
     # ==========================================
-    colunas_comuns = ['Cliente', 'Pedido', 'Motorista', 'Filial', 'Categoria', 'Rota', 'Tipo_Ocorrencia', 'Quantidade', 'Periodo', 'Empresa', 'Canal']
+    colunas_comuns = ['Cliente', 'Pedido', 'Motorista', 'Filial', 'Categoria', 'Rota', 'Tipo_Ocorrencia', 'Quantidade', 'Periodo', 'Empresa', 'Canal', 'Data_Filtro']
     
     for df in [df_danos, df_faltas]:
         if not df.empty:
             for col in colunas_comuns:
-                if col not in df.columns: df[col] = 'Não Identificado'
-                df[col] = df[col].fillna('Não Identificado')
+                if col not in df.columns: 
+                    if col == 'Data_Filtro':
+                        df[col] = pd.NaT
+                    else:
+                        df[col] = 'Não Identificado'
+                # Preenche vazios apenas nas colunas que não são de data
+                if col != 'Data_Filtro':
+                    df[col] = df[col].fillna('Não Identificado')
 
     df_unificado = pd.concat([df_danos[colunas_comuns], df_faltas[colunas_comuns]], ignore_index=True)
     

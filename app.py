@@ -302,14 +302,17 @@ try:
             response.raise_for_status() 
             return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
 
+        # LINK CONSOLIDADO APLICADO AQUI
+        link_consolidado = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDMHuXCCDdsSo_xMaDzOKbPAbkl3aenAQWCwWuw3QndlFk?download=1"
+
         # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")
-        link_amigo_danos = "https://diaslog-my.sharepoint.com/:x:/g/personal/arthur_rodrigues_mddelivery_com_br/IQDpm8MBmO03R5YbkXJrr12XAYpkbZyJ7mmYll2J7jvrdO8?download=1" 
         df_exibicao_danos = None
         
         try:
-            with st.spinner("Sincronizando Danos com o SharePoint..."):
-                df_tratativas_danos = carregar_excel_nuvem_turbinado(link_amigo_danos, "TOP5DANO").dropna(how='all').head(5).reset_index(drop=True)
+            with st.spinner("Sincronizando Danos com o OneDrive..."):
+                # Busca aba "danos"
+                df_tratativas_danos = carregar_excel_nuvem_turbinado(link_consolidado, "danos").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
             
             with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
@@ -332,12 +335,12 @@ try:
 
         # --- SESSÃO 2: TRATATIVAS DE FALTAS ---
         st.markdown("### 🛍️ Tratativas - Faltas")
-        link_sua_faltas = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDSDr5xR1HKR4DsDZwExx9RAfqRFUVfm-T8A1eYN3AQlac?download=1"
         df_exibicao_faltas = None
         
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):
-                df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_sua_faltas, "TOP 5 AGREG").dropna(how='all').head(5).reset_index(drop=True)
+                # Busca aba "faltas"
+                df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_consolidado, "faltas").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
             
             with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):

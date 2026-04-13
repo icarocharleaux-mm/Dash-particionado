@@ -11,19 +11,23 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
         outlier_limite = st.slider("🚫 Ocultar registos acima de (Outliers):", 1, max_itens, max_itens)
         st.divider()
         
-        # --- 1. CONFIGURAÇÃO DO CALENDÁRIO ---
+        # --- 1. CONFIGURAÇÃO DO CALENDÁRIO (DESTRAVADO) ---
         if not df_uni_base.empty and not df_uni_base['Data_Filtro'].dropna().empty:
             min_date = df_uni_base['Data_Filtro'].dropna().min().date()
             max_date = df_uni_base['Data_Filtro'].dropna().max().date()
+            
+            # Se a base só tiver 1 dia mapeado, recua 7 dias só para o calendário nascer como um "intervalo" visual
+            if min_date == max_date:
+                min_date = min_date - pd.Timedelta(days=7)
         else:
-            min_date = pd.to_datetime('today').date()
-            max_date = pd.to_datetime('today').date()
+            hoje = pd.to_datetime('today').date()
+            min_date = hoje - pd.Timedelta(days=30)
+            max_date = hoje
 
+        # Removemos o min_value e max_value. Agora você pode navegar para qualquer ano/mês!
         datas_selecionadas = st.date_input(
             "📅 Período de Análise:",
             value=(min_date, max_date),
-            min_value=min_date,
-            max_value=max_date,
             format="DD/MM/YYYY",
             help="Selecione primeiro a data de INÍCIO e depois a data de FIM. O intervalo ficará azul."
         )

@@ -11,12 +11,23 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
         outlier_limite = st.slider("🚫 Ocultar registos acima de (Outliers):", 1, max_itens, max_itens)
         st.divider()
         
-        # --- 1. CONFIGURAÇÃO DO CALENDÁRIO (DESTRAVADO) ---
+        # --- 1. CAIXAS DE SELEÇÃO PRIMEIRO (Empurra o calendário para baixo) ---
+        opcoes_filial = sorted(df_uni_base["Filial"].dropna().unique())
+        opcoes_motorista = sorted(df_uni_base["Motorista"].dropna().unique())
+        opcoes_empresa = sorted([str(x) for x in df_uni_base["Empresa"].dropna().unique() if str(x) not in ['Não Identificado', 'N/A']])
+        opcoes_canal = sorted([str(x) for x in df_uni_base["Canal"].dropna().unique() if str(x) not in ['Não Identificado', 'N/A']])
+
+        filial_sel = st.selectbox("🏢 Filial:", options=opcoes_filial, index=None, placeholder="Todas")
+        motorista_sel = st.selectbox("🚛 Motorista:", options=opcoes_motorista, index=None, placeholder="Todos")
+        empresa_sel = st.selectbox("🏭 Empresa (Danos):", options=opcoes_empresa, index=None, placeholder="Todas")
+        canal_sel = st.multiselect("🛍️ Marca Canal (Faltas):", options=opcoes_canal, placeholder="Escolha um ou mais...")
+
+        st.divider()
+
+        # --- 2. CALENDÁRIO NO FINAL (Garante espaço para o pop-up abrir) ---
         if not df_uni_base.empty and not df_uni_base['Data_Filtro'].dropna().empty:
             min_date = df_uni_base['Data_Filtro'].dropna().min().date()
             max_date = df_uni_base['Data_Filtro'].dropna().max().date()
-            
-            # Se a base só tiver 1 dia mapeado, recua 7 dias só para o calendário nascer como um "intervalo" visual
             if min_date == max_date:
                 min_date = min_date - pd.Timedelta(days=7)
         else:
@@ -24,42 +35,30 @@ def aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base):
             min_date = hoje - pd.Timedelta(days=30)
             max_date = hoje
 
-        # Removemos o min_value e max_value. Agora você pode navegar para qualquer ano/mês!
         datas_selecionadas = st.date_input(
             "📅 Período de Análise:",
             value=(min_date, max_date),
             format="DD/MM/YYYY",
-            help="Selecione primeiro a data de INÍCIO e depois a data de FIM. O intervalo ficará azul."
+            help="Selecione primeiro a data de INÍCIO e depois a data de FIM."
         )
-        
-        # --- 2. Preparando as listas limpas (com dropna) ---
-        opcoes_filial = sorted(df_uni_base["Filial"].dropna().unique())
-        opcoes_motorista = sorted(df_uni_base["Motorista"].dropna().unique())
-        
-        opcoes_empresa = sorted([str(x) for x in df_uni_base["Empresa"].dropna().unique() if str(x) not in ['Não Identificado', 'N/A']])
-        opcoes_canal = sorted([str(x) for x in df_uni_base["Canal"].dropna().unique() if str(x) not in ['Não Identificado', 'N/A']])
 
-        # --- 3. Criando as caixas de seleção com index=None ---
-        filial_sel = st.selectbox("🏢 Filial:", options=opcoes_filial, index=None, placeholder="Todas")
-        motorista_sel = st.selectbox("🚛 Motorista:", options=opcoes_motorista, index=None, placeholder="Todos")
-        empresa_sel = st.selectbox("🏭 Empresa (Danos):", options=opcoes_empresa, index=None, placeholder="Todas")
-        canal_sel = st.multiselect("🛍️ Marca Canal (Faltas):", options=opcoes_canal, placeholder="Escolha um ou mais...")
-
-    # --- 4. Aplicando as regras matemáticas ---
+    # --- 3. APLICANDO AS REGRAS MATEMÁTICAS ---
     df_uni = df_uni_base[df_uni_base["Quantidade"] <= outlier_limite].copy()
     df_danos = df_danos_base[df_danos_base["Quantidade"] <= outlier_limite].copy()
     df_faltas = df_faltas_base[df_faltas_base["Quantidade"] <= outlier_limite].copy()
 
-    # Só filtra se o utilizador completou a seleção (clicou nas duas datas)
+    # Aplica o filtro de data somente se o utilizador clicou no INÍCIO e FIM
     if isinstance(datas_selecionadas, tuple) and len(datas_selecionadas) == 2:
         start_date, end_date = datas_selecionadas
         t_start = pd.to_datetime(start_date)
-        t_end = pd.to_datetime(end_date)
+        # CRUCIAL: Adiciona 23h59m59s na data final para não cortar as ocorrências do último dia
+        t_end = pd.to_datetime(end_date) + pd.Timedelta(hours=23, minutes=59, seconds=59)
         
         df_uni = df_uni[(df_uni['Data_Filtro'] >= t_start) & (df_uni['Data_Filtro'] <= t_end)]
         df_danos = df_danos[(df_danos['Data_Filtro'] >= t_start) & (df_danos['Data_Filtro'] <= t_end)]
         df_faltas = df_faltas[(df_faltas['Data_Filtro'] >= t_start) & (df_faltas['Data_Filtro'] <= t_end)]
 
+    # Demais Filtros...
     if motorista_sel is not None:
         df_uni = df_uni[df_uni["Motorista"] == motorista_sel]
         df_danos = df_danos[df_danos["Motorista"] == motorista_sel]

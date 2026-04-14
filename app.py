@@ -6,6 +6,7 @@ import traceback
 import requests
 from fpdf import FPDF
 from io import BytesIO
+import streamlit.components.v1 as components
 
 # --- IMPORTANDO AS CAMADAS ---
 from dados import load_data
@@ -91,9 +92,9 @@ try:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()
 
-    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10 = st.tabs([
+    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10, aba11 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",
-        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação"
+        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação", "📈 Tendências"
     ])
 
     with aba1:
@@ -420,7 +421,28 @@ try:
         resumo_10 = ["Gestao Operacional e Qualidade", "- Foco: 5 Filiais mais ofensoras", "- Data Referencia: 25/03/2026"]
         pdf_aba10 = gerar_pdf_dinamico("Plano de Acao Logistico", resumo_10, None)
         st.download_button("📄 Baixar Relatório: Plano (PDF)", data=pdf_aba10, file_name="Plano_Acao.pdf", mime="application/pdf", key="pdf_aba10")
+    import streamlit as st
+import streamlit.components.v1 as components  # Importe o componente de HTML
 
 except Exception as e:
     st.error(f"Erro no processamento: {e}")
     st.code(traceback.format_exc())
+
+# 3. Nova Aba: Tendências
+with aba11:
+    st.subheader("📈 Análise de Tendências Externas")
+    
+    try:
+        # Lendo o conteúdo do arquivo HTML
+        with open("dashboard (1).html", "r", encoding="utf-8") as f:
+            html_dashboard = f.read()
+        
+        # Renderizando o HTML no Streamlit
+        # Ajuste a altura (height) conforme necessário para o seu gráfico
+        components.html(html_dashboard, height=800, scrolling=True)
+        
+    except FileNotFoundError:
+        st.error("⚠️ O arquivo 'dashboard (1).html' não foi encontrado no diretório.")
+    except Exception as e:
+        st.error(f"⚠️ Erro ao carregar o dashboard: {e}")
+

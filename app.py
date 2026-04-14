@@ -6,6 +6,7 @@ import traceback
 import requests
 from fpdf import FPDF
 from io import BytesIO
+import streamlit.components.v1 as components
 
 # --- IMPORTANDO AS CAMADAS ---
 from dados import load_data
@@ -91,9 +92,9 @@ try:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()
 
-    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10 = st.tabs([
+    aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10, aba11 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",
-        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação"
+        "🔄 Recor. Motorista", "🔄 Recor. Cliente", "🛣️ Rotas/Mapa", "📝 Tratativas", "🚨 Fraudes", "📋 Plano de Ação", "📈 Tendências"
     ])
 
     with aba1:
@@ -424,3 +425,20 @@ try:
 except Exception as e:
     st.error(f"Erro no processamento: {e}")
     st.code(traceback.format_exc())
+  
+    with aba11:
+        st.subheader("📈 Análise de Tendências Logísticas")
+        st.markdown("Nesta aba, visualizamos o comportamento das rotas e dias de operação conforme o dashboard de tendências.")
+        
+        try:
+            # Lendo o arquivo HTML enviado
+            with open("dashboard (1).html", "r", encoding="utf-8") as f:
+                html_data = f.read()
+            
+            # Renderizando o HTML no Streamlit
+            # Ajuste a altura (height) conforme necessário para o gráfico aparecer inteiro
+            st.components.v1.html(html_data, height=800, scrolling=True)
+            
+        except Exception as e:
+            st.error(f"⚠️ Erro ao carregar o arquivo de tendências: {e}")
+            st.info("Certifique-se de que o arquivo 'dashboard (1).html' está na mesma pasta que o app.py.")

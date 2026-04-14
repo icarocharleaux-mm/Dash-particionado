@@ -428,17 +428,21 @@ except Exception as e:
   
     with aba11:
         st.subheader("📈 Análise de Tendências Logísticas")
-        st.markdown("Nesta aba, visualizamos o comportamento das rotas e dias de operação conforme o dashboard de tendências.")
         
-        try:
-            # Lendo o arquivo HTML enviado
-            with open("dashboard (1).html", "r", encoding="utf-8") as f:
-                html_data = f.read()
-            
-            # Renderizando o HTML no Streamlit
-            # Ajuste a altura (height) conforme necessário para o gráfico aparecer inteiro
-            st.components.v1.html(html_data, height=800, scrolling=True)
-            
-        except Exception as e:
-            st.error(f"⚠️ Erro ao carregar o arquivo de tendências: {e}")
-            st.info("Certifique-se de que o arquivo 'dashboard (1).html' está na mesma pasta que o app.py.")
+        import os
+        # Nome exato do arquivo que você subiu
+        html_file_path = "dashboard (1).html"
+        
+        if os.path.exists(html_file_path):
+            try:
+                with open(html_file_path, "r", encoding="utf-8") as f:
+                    html_data = f.read()
+                
+                # Definindo uma altura fixa grande para garantir visibilidade
+                st.components.v1.html(html_data, height=1000, scrolling=True)
+                
+            except Exception as e:
+                st.error(f"Erro ao ler o arquivo HTML: {e}")
+        else:
+            st.error(f"⚠️ O arquivo '{html_file_path}' não foi encontrado no diretório.")
+            st.info("Verifique se o nome do arquivo no seu computador é exatamente 'dashboard (1).html' (incluindo o espaço e os parênteses).")

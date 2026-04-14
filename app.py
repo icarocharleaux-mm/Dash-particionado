@@ -430,26 +430,14 @@ except Exception as e:
         st.subheader("📈 Análise de Tendências Logísticas")
         
         import os
-        import streamlit.components.v1 as components
-
-        file_path = "dashboard (1).html"
-
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                
-                # Teste 1: Renderização Direta com largura total
-                components.html(
-                    html_content, 
-                    height=800, 
-                    scrolling=True
-                )
-                
-                # Teste 2: Link de segurança (caso o iframe falhe em alguns navegadores)
-                st.info("💡 Se o gráfico acima não carregar, ele pode ser muito pesado para o navegador processar dentro do painel.")
-                
-            except Exception as e:
-                st.error(f"Erro ao processar o arquivo: {e}")
+        # O nome deve ser exatamente igual ao arquivo na pasta
+        caminho_html = "dashboard (1).html"
+        
+        if os.path.exists(caminho_html):
+            with open(caminho_html, 'r', encoding='utf-8') as f:
+                html_code = f.read()
+            
+            # Usando st.components.v1.html
+            st.components.v1.html(html_code, height=800, scrolling=True)
         else:
-            st.warning(f"Arquivo '{file_path}' não encontrado no diretório raiz.")
+            st.error(f"Arquivo {caminho_html} não encontrado no servidor.")

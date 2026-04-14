@@ -430,19 +430,26 @@ except Exception as e:
         st.subheader("📈 Análise de Tendências Logísticas")
         
         import os
-        # Nome exato do arquivo que você subiu
-        html_file_path = "dashboard (1).html"
-        
-        if os.path.exists(html_file_path):
+        import streamlit.components.v1 as components
+
+        file_path = "dashboard (1).html"
+
+        if os.path.exists(file_path):
             try:
-                with open(html_file_path, "r", encoding="utf-8") as f:
-                    html_data = f.read()
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
                 
-                # Definindo uma altura fixa grande para garantir visibilidade
-                st.components.v1.html(html_data, height=1000, scrolling=True)
+                # Teste 1: Renderização Direta com largura total
+                components.html(
+                    html_content, 
+                    height=800, 
+                    scrolling=True
+                )
+                
+                # Teste 2: Link de segurança (caso o iframe falhe em alguns navegadores)
+                st.info("💡 Se o gráfico acima não carregar, ele pode ser muito pesado para o navegador processar dentro do painel.")
                 
             except Exception as e:
-                st.error(f"Erro ao ler o arquivo HTML: {e}")
+                st.error(f"Erro ao processar o arquivo: {e}")
         else:
-            st.error(f"⚠️ O arquivo '{html_file_path}' não foi encontrado no diretório.")
-            st.info("Verifique se o nome do arquivo no seu computador é exatamente 'dashboard (1).html' (incluindo o espaço e os parênteses).")
+            st.warning(f"Arquivo '{file_path}' não encontrado no diretório raiz.")

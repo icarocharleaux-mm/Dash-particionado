@@ -200,15 +200,40 @@ try:
 
     with aba3:
         if not df_faltas.empty:
-            st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial")
-            fig_m = plot_top_motoristas(df_faltas, 'Reds')
-            if fig_m: st.plotly_chart(fig_m, use_container_width=True)
+            # ==========================================
+            # 1. MÉTRICAS: VOLUME DE ITENS VS OCORRÊNCIAS
+            # ==========================================
+            total_itens_falta = df_faltas['Quantidade'].sum()
+            total_ocorrencias_falta = len(df_faltas)
+            
+            c1, c2, c3 = st.columns([1, 1, 2])
+            c1.metric("📦 Volume de Itens Faltantes", f"{total_itens_falta:,.0f}", "Soma Física")
+            c2.metric("📝 Total de Registros (NC)", total_ocorrencias_falta, "Linhas na Base", delta_color="off")
             st.write("---")
-            fig_f = plot_comparativo_filial(df_faltas, 'Reds')
-            if fig_f: st.plotly_chart(fig_f, use_container_width=True)
+
+            st.markdown("### 📊 Análise de Faltas: Top Motoristas e Filial (Por Volume de Itens)")
             
             # ==========================================
-            # NOVO GRÁFICO DE CATEGORIAS - SÓ FALTAS
+            # 2. GRÁFICOS RECALCULADOS PARA SOMAR ITENS
+            # ==========================================
+            col_esq, col_dir = st.columns(2)
+            
+            with col_esq:
+                df_mot_falta = df_faltas.groupby('Motorista')['Quantidade'].sum().nlargest(10).reset_index()
+                fig_m = px.bar(df_mot_falta, x='Quantidade', y='Motorista', orientation='h',
+                               color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+                fig_m.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, title="Top 10 Ofensores (Volume de Itens)")
+                st.plotly_chart(fig_m, use_container_width=True)
+                
+            with col_dir:
+                df_fil_falta = df_faltas.groupby('Filial')['Quantidade'].sum().reset_index()
+                fig_f = px.bar(df_fil_falta, x='Filial', y='Quantidade',
+                               color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+                fig_f.update_layout(title="Volume de Faltas por Filial")
+                st.plotly_chart(fig_f, use_container_width=True)
+            
+            # ==========================================
+            # 3. GRÁFICO DE CATEGORIAS (Já estava somando)
             # ==========================================
             st.write("---")
             st.markdown("### 🏷️ Categorias com Mais Faltas")
@@ -219,6 +244,9 @@ try:
                 fig_cat3.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
                 st.plotly_chart(fig_cat3, use_container_width=True)
         
+        # ==========================================
+        # 4. TABELA E EXPORTAÇÃO
+        # ==========================================
         st.markdown("### 📋 Tabela Organizada - Faltas")
         if not df_faltas.empty:
             df_tabela_formatada = organizar_tabela(df_faltas)
@@ -228,13 +256,19 @@ try:
         else:
             st.info("Nenhum dado de falta encontrado para os filtros atuais.")
             
-        # Exportar Aba 3
         st.write("---")
-        top_faltas = df_faltas.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_faltas.empty else None
-        resumo_3 = [f"Ocorrencias Exclusivas de Falta (NC): {len(df_faltas)} registros vinculados."]
-        pdf_aba3 = gerar_pdf_dinamico("Relatorio - Somente Faltas", resumo_3, top_faltas)
+        if not df_faltas.empty:
+            top_faltas = df_faltas.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index()
+            resumo_3 = [
+                f"Volume Total de Itens Faltantes: {total_itens_falta:,.0f} unidades",
+                f"Ocorrencias de Falta (NC): {total_ocorrencias_falta} registros vinculados."
+            ]
+        else:
+            top_faltas = None
+            resumo_3 = ["Nenhum dado filtrado."]
+            
+        pdf_aba3 = gerar_pdf_dinamico("Relatorio - Somente Faltas (Por Volume)", resumo_3, top_faltas)
         st.download_button("📄 Baixar Relatório: Faltas (PDF)", data=pdf_aba3, file_name="Relatorio_Faltas.pdf", mime="application/pdf", key="pdf_aba3")
-
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")
         fig_abc, df_abc = plot_curva_abc(df_uni)

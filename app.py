@@ -22,6 +22,17 @@ st.markdown("""
     [data-testid="stMetricLabel"] { font-size: 1.1rem; color: #555555; }
 </style>
 """, unsafe_allow_html=True)
+col_logo, col_texto = st.columns([1, 4]) 
+
+with col_logo:
+    st.image("logo.png", use_container_width=True)
+
+with col_texto:
+    st.title("Painel Integrado de Logística")
+    st.markdown("Monitoramento de Avarias e Faltas - Projeto **A Regra é Clara**")
+
+st.divider()
+# --------------------------
 
 def organizar_tabela(df_entrada):
     if df_entrada.empty: return df_entrada

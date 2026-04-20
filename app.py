@@ -88,6 +88,7 @@ try:
     df_uni, df_danos, df_faltas = aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base)
 
     # 3. INTERFACE GRÁFICA
+  st.image("logo.png", width=200)
     st.title("🚀 Painel Integrado de Logística")
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()

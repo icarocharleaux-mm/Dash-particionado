@@ -88,6 +88,9 @@ try:
     df_uni, df_danos, df_faltas = aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base)
 
     # 3. INTERFACE GRÁFICA
+
+col1, col2 = st.columns([1, 4])
+
 with col1:
     st.image("logo.png", width=120)
 

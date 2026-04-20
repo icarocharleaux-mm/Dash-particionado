@@ -89,6 +89,7 @@ try:
 
     # 3. INTERFACE GRÁFICA
   st.image("logo.png", width=200)
+
     st.title("🚀 Painel Integrado de Logística")
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
     st.divider()

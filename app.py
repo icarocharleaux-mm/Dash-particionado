@@ -88,7 +88,7 @@ try:
     df_uni, df_danos, df_faltas = aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base)
 
     # 3. INTERFACE GRÁFICA
-
+# ===== HEADER COM LOGO =====
 col1, col2 = st.columns([1, 4])
 
 with col1:
@@ -99,6 +99,8 @@ with col2:
     st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
 
 st.divider()
+
+    
 
     aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10, aba11 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",

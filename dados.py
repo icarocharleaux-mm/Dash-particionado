@@ -14,9 +14,10 @@ def load_data():
         df_danos = pd.read_csv("base_pronta.csv", sep=";", encoding="latin-1")
         df_danos.columns = [str(c).replace('\ufeff', '').replace('ï»¿', '').strip().lower() for c in df_danos.columns]
 
-        # Padronização imediata pela coluna 0 (Corta a raiz do problema de nomes)
+        # Padronização imediata pela coluna 0
         if not df_danos.empty:
-            df_danos["Data_Filtro"] = pd.to_datetime(df_danos.iloc[:, 0], dayfirst=True, errors='coerce')
+            # CORREÇÃO: Removido dayfirst=True para aceitar o formato YYYY-MM-DD da base
+            df_danos["Data_Filtro"] = pd.to_datetime(df_danos.iloc[:, 0], errors='coerce')
             df_danos['Periodo'] = df_danos["Data_Filtro"].dt.month.map(mapa_meses_num).fillna('Não Identificado')
         else:
             df_danos["Data_Filtro"] = pd.NaT
@@ -43,7 +44,8 @@ def load_data():
 
         # Padronização imediata pela coluna 0
         if not df_faltas.empty:
-            df_faltas["Data_Filtro"] = pd.to_datetime(df_faltas.iloc[:, 0], dayfirst=True, errors='coerce')
+            # CORREÇÃO: Removido dayfirst=True para aceitar o formato YYYY-MM-DD da base
+            df_faltas["Data_Filtro"] = pd.to_datetime(df_faltas.iloc[:, 0], errors='coerce')
             df_faltas['Periodo'] = df_faltas["Data_Filtro"].dt.month.map(mapa_meses_num).fillna('Não Identificado')
         else:
             df_faltas["Data_Filtro"] = pd.NaT
@@ -62,17 +64,23 @@ def load_data():
         df_faltas = pd.DataFrame()
 
     # ==========================================
-    # 3. UNIFICAR E BLINDAR
+    # 3. UNIFICAR E BLINDAR (Lógica de preenchimento corrigida)
     # ==========================================
     colunas_comuns = ['Cliente', 'Pedido', 'Motorista', 'Filial', 'Categoria', 'Rota', 'Tipo_Ocorrencia', 'Quantidade', 'Periodo', 'Empresa', 'Canal', 'Data_Filtro']
     
     for df in [df_danos, df_faltas]:
         if not df.empty:
+            # Garante que a coluna Quantidade é numérica e substitui vazios por 0 (evita virar texto)
+            if 'Quantidade' in df.columns:
+                df['Quantidade'] = pd.to_numeric(df['Quantidade'], errors='coerce').fillna(0)
+
             for col in colunas_comuns:
                 if col not in df.columns: 
                     if col == 'Data_Filtro': df[col] = pd.NaT
                     else: df[col] = 'Não Identificado'
-                if col != 'Data_Filtro':
+                
+                # SÓ preenche com "Não Identificado" se NÃO for a coluna de data ou de quantidade
+                if col not in ['Data_Filtro', 'Quantidade']:
                     df[col] = df[col].fillna('Não Identificado')
 
     df_unificado = pd.concat([df_danos[colunas_comuns], df_faltas[colunas_comuns]], ignore_index=True)

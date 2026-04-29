@@ -476,26 +476,32 @@ except Exception as e:
         
         # 3. Direciona os dados corretos dependendo da escolha do usuário
         if tipo_base == "Somente Danos":
-            df_plot = df_danos  # Puxa os dados da base_pronta.csv
+            df_plot = df_danos  
         elif tipo_base == "Somente Faltas":
-            df_plot = df_faltas # Puxa os dados da base_falta_pronta.csv
+            df_plot = df_faltas 
         else:
-            df_plot = df_uni    # Puxa as duas bases juntas
+            df_plot = df_uni    
             
         # 4. Gera o gráfico se a base não estiver vazia
         if not df_plot.empty:
-            # Chama a função que criamos em graficos.py
             fig_tempo = plot_evolucao_temporal(df_plot, periodicidade=param_tempo)
-            st.plotly_chart(fig_tempo, use_container_width=True)
+            if fig_tempo:
+                st.plotly_chart(fig_tempo, use_container_width=True)
+            else:
+                st.warning("Não foi possível gerar o gráfico de linha do tempo com as datas atuais.")
         else:
             st.warning(f"Não há dados disponíveis para a seleção: {tipo_base}")
         
         st.divider()
         
-        # --- (Opcional) Seu dashboard HTML antigo continua aqui embaixo ---
         import os
         caminho_html = "dashboard (1).html"
         if os.path.exists(caminho_html):
             with open(caminho_html, 'r', encoding='utf-8') as f:
                 html_code = f.read()
             st.components.v1.html(html_code, height=800, scrolling=True)
+
+# O except fica totalmente colado no canto esquerdo, NO FINAL DE TUDO!
+except Exception as e:
+    st.error(f"Erro no processamento: {e}")
+    st.code(traceback.format_exc())

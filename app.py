@@ -12,8 +12,8 @@ import streamlit.components.v1 as components
 from dados import load_data
 from filtros import aplicar_filtros_barra_lateral
 from graficos import (plot_top_motoristas, plot_comparativo_filial, plot_pizza_tipo_ocorrencia, 
-                      plot_curva_abc, plot_heatmap_recorrencia, plot_mapa_rotas)
-
+                      plot_curva_abc, plot_heatmap_recorrencia, plot_mapa_rotas,
+                      plot_evolucao_temporal) 
 # Configuração da Página e CSS
 st.set_page_config(page_title="Painel Integrado: Danos & Faltas", layout="wide", page_icon="🚀")
 st.markdown("""

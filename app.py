@@ -347,7 +347,7 @@ try:
             return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
 
         # LINK CONSOLIDADO APLICADO AQUI
-        link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download-1"
+        link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download"
 
         # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")

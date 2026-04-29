@@ -452,10 +452,7 @@ try:
         pdf_aba10 = gerar_pdf_dinamico("Plano de Acao Logistico", resumo_10, None)
         st.download_button("📄 Baixar Relatório: Plano (PDF)", data=pdf_aba10, file_name="Plano_Acao.pdf", mime="application/pdf", key="pdf_aba10")
 
-except Exception as e:
-    st.error(f"Erro no processamento: {e}")
-    st.code(traceback.format_exc())
-  
+ 
     with aba11:
         st.subheader("📈 Análise de Tendências Temporais")
         

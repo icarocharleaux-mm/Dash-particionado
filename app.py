@@ -100,7 +100,7 @@ try:
 
     with col_logo:
         try:
-            st.image("logo.png", width=200)
+            st.image("logo.png", width=300)
         except Exception:
             pass
 

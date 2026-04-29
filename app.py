@@ -494,13 +494,7 @@ except Exception as e:
         
         st.divider()
         
-        import os
-        caminho_html = "dashboard (1).html"
-        if os.path.exists(caminho_html):
-            with open(caminho_html, 'r', encoding='utf-8') as f:
-                html_code = f.read()
-            st.components.v1.html(html_code, height=800, scrolling=True)
-
+  
 # O except fica totalmente colado no canto esquerdo, NO FINAL DE TUDO!
 except Exception as e:
     st.error(f"Erro no processamento: {e}")

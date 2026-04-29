@@ -1,5 +1,6 @@
 import plotly.express as px
 import pandas as pd
+import streamlit as st
 
 def plot_top_motoristas(df_filtrado, escala_cor):
     if df_filtrado.empty: return None
@@ -80,3 +81,54 @@ def plot_mapa_rotas(df_uni, df_mapa_agg, df_coord_agg):
         fig = px.scatter_mapbox(df_mapa_plot, lat="LATITUDE", lon="LONGITUDE", size="Total_Geral", color="Total_Geral", hover_name="Setor", hover_data=["Rota", "Bairro"], zoom=7, mapbox_style="carto-positron")
     
     return fig, tabela_final[['Rota', 'Setor', 'Bairro', 'Total_Geral']].sort_values('Total_Geral', ascending=False)
+
+def plot_evolucao_temporal(df, periodicidade='M'):
+    """
+    Gera um gráfico de linha do tempo agrupando ocorrências por Filial.
+    periodicidade: 'M' para Mensal, 'W' para Semanal
+    """
+    if df.empty or 'Data_Filtro' not in df.columns:
+        return None
+        
+    df_temp = df.copy()
+    
+    # Garante que a coluna de data é do tipo datetime
+    df_temp['Data_Filtro'] = pd.to_datetime(df_temp['Data_Filtro'], errors='coerce')
+    df_temp = df_temp.dropna(subset=['Data_Filtro'])
+    
+    if df_temp.empty:
+        return None
+
+    # Cria a coluna de agregação temporal (Ano-Mês ou Ano-Semana)
+    if periodicidade == 'M':
+        # Formato AAAA-MM
+        df_temp['Linha_Tempo'] = df_temp['Data_Filtro'].dt.to_period('M').astype(str) 
+        titulo = "Evolução Mensal de Ocorrências por Filial"
+    else:
+        # Formato AAAA-WW (Semana do ano)
+        df_temp['Linha_Tempo'] = df_temp['Data_Filtro'].dt.to_period('W').astype(str)
+        titulo = "Evolução Semanal de Ocorrências por Filial"
+        
+    # Agrupa somando a quantidade de itens perdidos/danificados
+    df_agrupado = df_temp.groupby(['Linha_Tempo', 'Filial'])['Quantidade'].sum().reset_index()
+    
+    # Gera o gráfico de linhas
+    fig = px.line(
+        df_agrupado, 
+        x='Linha_Tempo', 
+        y='Quantidade', 
+        color='Filial', 
+        markers=True,
+        title=titulo,
+        color_discrete_sequence=px.colors.qualitative.Set1 # Paleta de cores bem definida
+    )
+    
+    # Ajustes de layout
+    fig.update_layout(
+        xaxis_title="Período", 
+        yaxis_title="Volume de Itens (Qtd)",
+        hovermode="x unified", # Mostra os dados de todas as filiais ao passar o mouse em um ponto
+        legend_title="Filial"
+    )
+    
+    return fig

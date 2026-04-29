@@ -457,17 +457,45 @@ except Exception as e:
     st.code(traceback.format_exc())
   
     with aba11:
-        st.subheader("📈 Análise de Tendências Logísticas")
+        st.subheader("📈 Análise de Tendências Temporais")
         
+        # 1. Filtro para o usuário escolher qual planilha (base) ele quer ver
+        tipo_base = st.radio(
+            "Qual base de dados você quer analisar na linha do tempo?", 
+            ["Ambas (Geral)", "Somente Danos", "Somente Faltas"], 
+            horizontal=True
+        )
+        
+        # 2. Filtro para escolher se a visão é por Mês ou por Semana
+        tipo_visao = st.radio(
+            "Selecione a periodicidade:", 
+            ["Mensal", "Semanal"], 
+            horizontal=True
+        )
+        param_tempo = 'M' if tipo_visao == "Mensal" else 'W'
+        
+        # 3. Direciona os dados corretos dependendo da escolha do usuário
+        if tipo_base == "Somente Danos":
+            df_plot = df_danos  # Puxa os dados da base_pronta.csv
+        elif tipo_base == "Somente Faltas":
+            df_plot = df_faltas # Puxa os dados da base_falta_pronta.csv
+        else:
+            df_plot = df_uni    # Puxa as duas bases juntas
+            
+        # 4. Gera o gráfico se a base não estiver vazia
+        if not df_plot.empty:
+            # Chama a função que criamos em graficos.py
+            fig_tempo = plot_evolucao_temporal(df_plot, periodicidade=param_tempo)
+            st.plotly_chart(fig_tempo, use_container_width=True)
+        else:
+            st.warning(f"Não há dados disponíveis para a seleção: {tipo_base}")
+        
+        st.divider()
+        
+        # --- (Opcional) Seu dashboard HTML antigo continua aqui embaixo ---
         import os
-        # O nome deve ser exatamente igual ao arquivo na pasta
         caminho_html = "dashboard (1).html"
-        
         if os.path.exists(caminho_html):
             with open(caminho_html, 'r', encoding='utf-8') as f:
                 html_code = f.read()
-            
-            # Usando st.components.v1.html
             st.components.v1.html(html_code, height=800, scrolling=True)
-        else:
-            st.error(f"Arquivo {caminho_html} não encontrado no servidor.")

@@ -89,13 +89,8 @@ try:
 
     # 3. INTERFACE GRÁFICA
 
-col_logo, col_titulo = st.columns([1, 4])
-
-with col_logo:
-    try:
-        st.image("logo.png", width=140)
-    except Exception:
-        pass
+# Invertemos a ordem: col_titulo (maior) primeiro, col_logo (menor) depois
+col_titulo, col_logo = st.columns([4, 1])
 
 with col_titulo:
     st.markdown("""
@@ -104,6 +99,14 @@ with col_titulo:
     Visão consolidada cruzando dados de <b>Danos</b>, <b>Faltas (NC)</b> e <b>Auditoria Logística</b>.
     </p>
     """, unsafe_allow_html=True)
+
+with col_logo:
+    try:
+        # A logo agora fica na segunda coluna (direita)
+        st.image("logo.png", width=140)
+    except Exception:
+        # Caso a imagem não seja encontrada, o código continua sem erro
+        pass
 
 st.divider()
 

@@ -88,13 +88,24 @@ try:
     df_uni, df_danos, df_faltas = aplicar_filtros_barra_lateral(df_uni_base, df_danos_base, df_faltas_base)
 
     # 3. INTERFACE GRÁFICA
+
+col_logo, col_titulo = st.columns([1, 4])
+
+with col_logo:
     try:
-        st.image("logo.png", width=250) 
+        st.image("logo.png", width=140)
     except Exception:
         pass
-    st.title("🚀 Painel Integrado de Logística")
-    st.markdown("Visão consolidada cruzando dados de **Danos**, **Faltas (NC)** e **Auditoria Logística**.")
-    st.divider()
+
+with col_titulo:
+    st.markdown("""
+    <h1 style='margin-bottom:0;'>🚀 Painel Integrado de Logística</h1>
+    <p style='margin-top:0; font-size:18px; color:gray;'>
+    Visão consolidada cruzando dados de <b>Danos</b>, <b>Faltas (NC)</b> e <b>Auditoria Logística</b>.
+    </p>
+    """, unsafe_allow_html=True)
+
+st.divider()
 
     aba1, aba2, aba3, aba4, aba5, aba6, aba7, aba8, aba9, aba10, aba11 = st.tabs([
         "🌐 Visão Geral", "📦 Só Danos", "📉 Só Faltas", "🎯 Curva ABC",

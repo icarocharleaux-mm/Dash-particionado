@@ -83,19 +83,17 @@ def plot_mapa_rotas(df_uni, df_mapa_agg, df_coord_agg):
     return fig, tabela_final[['Rota', 'Setor', 'Bairro', 'Total_Geral']].sort_values('Total_Geral', ascending=False)
 
 def plot_evolucao_temporal(df, periodicidade='M'):
-    """Gera um gráfico de linha do tempo agrupando ocorrências por Filial."""
+
     if df.empty:
         return None
-        
+
     df_temp = df.copy()
-    
-    # 💡 O PULO DO GATO: Pega automaticamente o nome da PRIMEIRA coluna (Coluna A)
-    col_data = df_temp.columns[0]
-    
-    # Tenta converter essa Coluna A para o formato de data
+
+    col_data = 'Data_Filtro'
+
     df_temp[col_data] = pd.to_datetime(df_temp[col_data], errors='coerce')
     df_temp = df_temp.dropna(subset=[col_data])
-    
+
     if df_temp.empty:
         return None
 

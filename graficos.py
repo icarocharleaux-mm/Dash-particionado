@@ -83,52 +83,39 @@ def plot_mapa_rotas(df_uni, df_mapa_agg, df_coord_agg):
     return fig, tabela_final[['Rota', 'Setor', 'Bairro', 'Total_Geral']].sort_values('Total_Geral', ascending=False)
 
 def plot_evolucao_temporal(df, periodicidade='M'):
-    """
-    Gera um gráfico de linha do tempo agrupando ocorrências por Filial.
-    periodicidade: 'M' para Mensal, 'W' para Semanal
-    """
-    if df.empty or 'Data_Filtro' not in df.columns:
+    """Gera um gráfico de linha do tempo agrupando ocorrências por Filial."""
+    if df.empty:
         return None
         
     df_temp = df.copy()
     
-    # Garante que a coluna de data é do tipo datetime
-    df_temp['Data_Filtro'] = pd.to_datetime(df_temp['Data_Filtro'], errors='coerce')
-    df_temp = df_temp.dropna(subset=['Data_Filtro'])
+    # 💡 O PULO DO GATO: Pega automaticamente o nome da PRIMEIRA coluna (Coluna A)
+    col_data = df_temp.columns[0]
+    
+    # Tenta converter essa Coluna A para o formato de data
+    df_temp[col_data] = pd.to_datetime(df_temp[col_data], errors='coerce')
+    df_temp = df_temp.dropna(subset=[col_data])
     
     if df_temp.empty:
         return None
 
-    # Cria a coluna de agregação temporal (Ano-Mês ou Ano-Semana)
     if periodicidade == 'M':
-        # Formato AAAA-MM
-        df_temp['Linha_Tempo'] = df_temp['Data_Filtro'].dt.to_period('M').astype(str) 
+        df_temp['Linha_Tempo'] = df_temp[col_data].dt.to_period('M').astype(str) 
         titulo = "Evolução Mensal de Ocorrências por Filial"
     else:
-        # Formato AAAA-WW (Semana do ano)
-        df_temp['Linha_Tempo'] = df_temp['Data_Filtro'].dt.to_period('W').astype(str)
+        df_temp['Linha_Tempo'] = df_temp[col_data].dt.to_period('W').astype(str)
         titulo = "Evolução Semanal de Ocorrências por Filial"
         
-    # Agrupa somando a quantidade de itens perdidos/danificados
     df_agrupado = df_temp.groupby(['Linha_Tempo', 'Filial'])['Quantidade'].sum().reset_index()
     
-    # Gera o gráfico de linhas
+    # Se, por acaso, a tabela agrupada ficar vazia, não gera o gráfico
+    if df_agrupado.empty:
+        return None
+        
     fig = px.line(
-        df_agrupado, 
-        x='Linha_Tempo', 
-        y='Quantidade', 
-        color='Filial', 
-        markers=True,
-        title=titulo,
-        color_discrete_sequence=px.colors.qualitative.Set1 # Paleta de cores bem definida
+        df_agrupado, x='Linha_Tempo', y='Quantidade', color='Filial', 
+        markers=True, title=titulo, color_discrete_sequence=px.colors.qualitative.Set1
     )
     
-    # Ajustes de layout
-    fig.update_layout(
-        xaxis_title="Período", 
-        yaxis_title="Volume de Itens (Qtd)",
-        hovermode="x unified", # Mostra os dados de todas as filiais ao passar o mouse em um ponto
-        legend_title="Filial"
-    )
-    
+    fig.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens (Qtd)", hovermode="x unified", legend_title="Filial")
     return fig

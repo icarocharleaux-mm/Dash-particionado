@@ -233,10 +233,12 @@ try:
             # 1. CÁLCULO DE VOLUMES
             total_itens_falta = df_faltas['Quantidade'].sum()
             total_ocorrencias_falta = len(df_faltas)
+            media_falta = total_itens_falta / total_ocorrencias_falta
             
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             c1.metric("📦 Volume de Itens Faltantes", f"{total_itens_falta:,.0f}", "Soma de Itens")
             c2.metric("📝 Total de Registros (NC)", total_ocorrencias_falta, "Linhas na Base", delta_color="off")
+            c3.metric("⚖️ Média Itens/Ocorrência", f"{media_falta:.1f}", "Itens por NC", delta_color="off")
             
             st.write("---")
 

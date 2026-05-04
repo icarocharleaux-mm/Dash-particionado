@@ -445,20 +445,13 @@ try:
                 df_geo = df_geo[df_geo['Quantidade'] > 0]
 
                 # RANKINGS: Cidades e Bairros
-                with col_evol:
-                        st.markdown("#### 📅 Evolução (Top 5 Cidades)")
-                        top_5_cids = top_cidades.head(5)['Cidade'].tolist()
-                        df_evol_reg = df_geo[df_geo['Cidade'].isin(top_5_cids)]
-                        
-                        df_evol_grp = df_evol_reg.groupby(['Periodo', 'Cidade'])['Quantidade'].sum().reset_index()
-                        df_evol_grp = df_evol_grp.sort_values(by='Periodo')
-                        
-                        fig_evol = px.line(df_evol_grp, x='Periodo', y='Quantidade', color='Cidade', markers=True)
-                        
-                        # --- LINHA CORRIGIDA AQUI (y=-0.2 no lugar de ybottom=-0.2) ---
-                        fig_evol.update_layout(legend=dict(orientation="h", y=-0.2, yanchor="top", xanchor="center", x=0.5))
-                        
-                        st.plotly_chart(fig_evol, use_container_width=True)
+                col_cid, col_bai = st.columns(2)
+                with col_cid:
+                    st.markdown("#### 🏆 Top 10 Cidades Críticas")
+                    top_cidades = df_geo.groupby('Cidade')['Quantidade'].sum().nlargest(10).reset_index()
+                    fig_cid = px.bar(top_cidades, x='Quantidade', y='Cidade', orientation='h', color='Quantidade', color_continuous_scale='Oranges', text_auto='.0f')
+                    fig_cid.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                    st.plotly_chart(fig_cid, use_container_width=True)
 
                 with col_bai:
                     st.markdown("#### 🚨 Top 10 Bairros Críticos")
@@ -499,7 +492,10 @@ try:
                         df_evol_grp = df_evol_grp.sort_values(by='Periodo')
                         
                         fig_evol = px.line(df_evol_grp, x='Periodo', y='Quantidade', color='Cidade', markers=True)
-                        fig_evol.update_layout(legend=dict(orientation="h", ybottom=-0.2, yanchor="top", xanchor="center", x=0.5))
+                        
+                        # --- LINHA CORRIGIDA AQUI (y=-0.2 no lugar de ybottom=-0.2) ---
+                        fig_evol.update_layout(legend=dict(orientation="h", y=-0.2, yanchor="top", xanchor="center", x=0.5))
+                        
                         st.plotly_chart(fig_evol, use_container_width=True)
 
                     with col_heat:

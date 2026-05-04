@@ -403,8 +403,8 @@ try:
     with aba8:
       st.subheader("📝 Controle de Tratativas")
         
-        @st.cache_data(ttl=600)
-        def carregar_excel_nuvem_turbinado(url, aba):
+@st.cache_data(ttl=600)
+def carregar_excel_nuvem_turbinado(url, aba):
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             response = requests.get(url, headers=headers, allow_redirects=True)
             response.raise_for_status() 

@@ -177,15 +177,16 @@ try:
     with aba2:
         if not df_danos.empty:
             # ==========================================
-            # 1. CÁLCULO DE VOLUMES E MÉTRICAS (Espelhado da Aba 3)
+            # 1. CÁLCULO DE VOLUMES E MÉTRICAS
             # ==========================================
             total_itens_dano = df_danos['Quantidade'].sum()
             total_ocorrencias_dano = len(df_danos)
-            media_itens_por_ocorrencia = df_uni["Quantidade"].sum() / total_ocorrencias
+            media_dano = total_itens_dano / total_ocorrencias_dano
             
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             c1.metric("📦 Volume de Itens Danificados", f"{total_itens_dano:,.0f}", "Soma de Itens")
             c2.metric("📝 Total de Registros (NC)", total_ocorrencias_dano, "Linhas na Base", delta_color="off")
+            c3.metric("⚖️ Média Itens/Ocorrência", f"{media_dano:.1f}", "Itens por NC", delta_color="off")
             
             st.write("---")
             # ==========================================

@@ -356,7 +356,7 @@ try:
         st.markdown("### 📍 Detalhamento de Ocorrências por Rota")
         
         # Verifica se a coluna 'Rota' existe no DataFrame principal
-        coluna_rota = 'rota' # <-- Altere aqui se o nome da sua coluna for diferente
+        coluna_rota = 'Rota' # <-- Altere aqui se o nome da sua coluna for diferente
         
         if coluna_rota in df_uni.columns:
             # 1. Agrupa os DANOS por rota

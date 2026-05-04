@@ -341,114 +341,86 @@ try:
     with aba7:
         st.subheader("🗺️ Mapeamento Geográfico")
         
-        # ==========================================
-        # PASSO 1: TABELA DETALHADA (DANOS VS FALTAS)
-        # ==========================================
-        coluna_rota = 'rota' # o nome correto que você encontrou no passo anterior
+        coluna_rota = 'rota' # Mantendo o nome correto da coluna
         
-        # 1. Agrupa os DANOS por rota
+        # 1. Agrupa DANOS e FALTAS por rota
         if not df_danos.empty and coluna_rota in df_danos.columns:
             df_danos_rota = df_danos.groupby(coluna_rota)['Quantidade'].sum().reset_index(name='Qtd_Danos')
         else:
             df_danos_rota = pd.DataFrame(columns=[coluna_rota, 'Qtd_Danos'])
             
-        # 2. Agrupa as FALTAS por rota
         if not df_faltas.empty and coluna_rota in df_faltas.columns:
             df_faltas_rota = df_faltas.groupby(coluna_rota)['Quantidade'].sum().reset_index(name='Qtd_Faltas')
         else:
             df_faltas_rota = pd.DataFrame(columns=[coluna_rota, 'Qtd_Faltas'])
             
-        # 3. Junta as duas tabelas
+        # 2. Junta as quantidades de danos e faltas
         df_resumo_rotas = pd.merge(df_danos_rota, df_faltas_rota, on=coluna_rota, how='outer').fillna(0)
         df_resumo_rotas['Qtd_Danos'] = df_resumo_rotas['Qtd_Danos'].astype(int)
         df_resumo_rotas['Qtd_Faltas'] = df_resumo_rotas['Qtd_Faltas'].astype(int)
         df_resumo_rotas['Total_Volume'] = df_resumo_rotas['Qtd_Danos'] + df_resumo_rotas['Qtd_Faltas']
         
-        # Padronizando como texto para não ter erro de "PROCV" com a planilha da Natura
-        df_resumo_rotas['rota_padrao'] = df_resumo_rotas[coluna_rota].astype(str).str.strip()
+        # Correção Crucial: Tratando o formato da Rota (removendo .0 e espaços)
+        df_resumo_rotas['rota_padrao'] = df_resumo_rotas[coluna_rota].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-        # ==========================================
-        # PASSO 2: LER AS PLANILHAS DA NATURA E FAZER O CRUZAMENTO
-        # ==========================================
-        try:
-            # Lendo os dois arquivos (pulando as 7 primeiras linhas vazias do cabeçalho da Natura)
-            # encoding='latin1' garante que acentos (ç, ã) sejam lidos corretamente
-            df_notas = pd.read_csv("relatorionotas.csv", sep=";", encoding="latin1", skiprows=7)
-            df_falta = pd.read_csv("relatorionotas_falta.csv", sep=";", encoding="latin1", skiprows=7)
+        # 3. Cruze com os dados já carregados pelo dados.py (df_mapa_agg e df_coord_agg)
+        if not df_mapa_agg.empty and not df_coord_agg.empty:
             
-            # Unindo as duas bases de referência
-            df_ref = pd.concat([df_notas, df_falta], ignore_index=True)
-            
-            if 'Rota' in df_ref.columns:
-                # Filtrando apenas as colunas geográficas que precisamos
-                df_geo = df_ref[['Rota', 'Cidade', 'Bairro', 'LATITUDE', 'LONGITUDE']].dropna(subset=['Rota'])
-                
-                # Tratando as coordenadas (trocando vírgula por ponto para o Python entender como número)
-                df_geo['LATITUDE'] = pd.to_numeric(df_geo['LATITUDE'].astype(str).str.replace(',', '.'), errors='coerce')
-                df_geo['LONGITUDE'] = pd.to_numeric(df_geo['LONGITUDE'].astype(str).str.replace(',', '.'), errors='coerce')
-                
-                # Padronizando a coluna Rota da Natura
-                df_geo['Rota'] = df_geo['Rota'].astype(str).str.strip()
-                
-                # Como uma rota atende vários bairros/cidades, vamos pegar o bairro/cidade que mais aparece nela e a média da coordenada central
-                df_geo_agg = df_geo.groupby('Rota').agg({
-                    'Cidade': lambda x: x.value_counts().index[0] if not x.dropna().empty else 'N/A',
-                    'Bairro': lambda x: x.value_counts().index[0] if not x.dropna().empty else 'N/A',
-                    'LATITUDE': 'mean',
-                    'LONGITUDE': 'mean'
-                }).reset_index()
-                
-                # ==========================================
-                # PASSO 3: UNIR AS TABELAS E PLOTAR O MAPA
-                # ==========================================
-                # Juntando o nosso resumo de danos/faltas com as infos de cidade/bairro da Natura
-                df_final = pd.merge(df_resumo_rotas, df_geo_agg, left_on='rota_padrao', right_on='Rota', how='left')
-                
-                # Removendo linhas com volume zero e organizando
-                df_final = df_final[df_final['Total_Volume'] > 0].sort_values(by='Total_Volume', ascending=False).reset_index(drop=True)
-                
-                # Criando o Mapa Dinâmico
-                df_com_coord = df_final.dropna(subset=['LATITUDE', 'LONGITUDE'])
-                
-                if not df_com_coord.empty:
-                    fig_mapa = px.scatter_mapbox(
-                        df_com_coord, 
-                        lat="LATITUDE", 
-                        lon="LONGITUDE", 
-                        size="Total_Volume",         # Bolinhas maiores para rotas com mais problemas
-                        color="Total_Volume",        # Cores mais intensas para rotas críticas
-                        color_continuous_scale="Reds",
-                        hover_name="Cidade", 
-                        hover_data={"Bairro": True, "rota_padrao": True, "Qtd_Danos": True, "Qtd_Faltas": True, "LATITUDE": False, "LONGITUDE": False}, 
-                        zoom=5, 
-                        mapbox_style="carto-positron",
-                        title="Calor de Ocorrências por Rota"
-                    )
-                    fig_mapa.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
-                    st.plotly_chart(fig_mapa, use_container_width=True)
-                else:
-                    st.info("💡 Nenhuma das rotas filtradas possui coordenadas cadastradas nas planilhas.")
-                
-                # Exibindo a Tabela Final Rica
-                st.write("---")
-                st.markdown("### 📍 Detalhamento de Ocorrências: Rota, Cidade e Bairro")
-                colunas_exibicao = ['rota_padrao', 'Cidade', 'Bairro', 'Qtd_Danos', 'Qtd_Faltas', 'Total_Volume']
-                
-                # Renomeando 'rota_padrao' para 'Rota' para ficar bonito na tela
-                df_exibicao = df_final[colunas_exibicao].rename(columns={'rota_padrao': 'Rota'}).copy()
-                st.dataframe(df_exibicao, use_container_width=True)
-                
-                # Exportação para PDF
-                st.write("---")
-                resumo_7 = ["Volume de itens perdidos e danificados detalhados por rota de entrega, cidade e bairro."]
-                pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
-                st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
+            # Garantindo que as bases importadas do dados.py também tenham a rota padronizada
+            df_mapa_agg['Rota'] = df_mapa_agg['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            df_coord_agg['Rota'] = df_coord_agg['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
+            # Junta Bairro e Cidade
+            df_final = pd.merge(df_resumo_rotas, df_mapa_agg, left_on='rota_padrao', right_on='Rota', how='left')
+            # Junta Latitude e Longitude
+            df_final = pd.merge(df_final, df_coord_agg, on='Rota', how='left')
+            
+            # Filtra apenas rotas com volume maior que zero
+            df_final = df_final[df_final['Total_Volume'] > 0].sort_values(by='Total_Volume', ascending=False).reset_index(drop=True)
+            
+            # Preenchendo "Não Encontrado" para rotas que não bateram no PROCV
+            df_final['Cidade'] = df_final['Cidade'].fillna('Não Encontrada')
+            df_final['Bairro'] = df_final['Bairro'].fillna('Não Encontrado')
+
+            # 4. Criação do Mapa Dinâmico
+            df_com_coord = df_final.dropna(subset=['LATITUDE', 'LONGITUDE'])
+            
+            if not df_com_coord.empty:
+                fig_mapa = px.scatter_mapbox(
+                    df_com_coord, 
+                    lat="LATITUDE", 
+                    lon="LONGITUDE", 
+                    size="Total_Volume",         
+                    color="Total_Volume",        
+                    color_continuous_scale="Reds",
+                    hover_name="Cidade", 
+                    hover_data={"Bairro": True, "rota_padrao": True, "Qtd_Danos": True, "Qtd_Faltas": True, "LATITUDE": False, "LONGITUDE": False}, 
+                    zoom=5, 
+                    mapbox_style="carto-positron",
+                    title="Calor de Ocorrências por Rota"
+                )
+                fig_mapa.update_layout(margin={"r":0,"t":40,"l":0,"b":0})
+                st.plotly_chart(fig_mapa, use_container_width=True)
             else:
-                st.error("A coluna 'Rota' não foi encontrada nos arquivos relatorionotas.csv e relatorionotas_falta.csv.")
-                
-        except Exception as e:
-            st.error(f"Erro ao tentar cruzar com os arquivos da Natura: {e}")
+                st.info("💡 As rotas listadas não possuem coordenadas no sistema, portanto o mapa não pôde ser gerado.")
+            
+            # 5. Exibição da Tabela Rica
+            st.write("---")
+            st.markdown("### 📍 Detalhamento de Ocorrências: Rota, Cidade e Bairro")
+            colunas_exibicao = ['rota_padrao', 'Cidade', 'Bairro', 'Qtd_Danos', 'Qtd_Faltas', 'Total_Volume']
+            df_exibicao = df_final[[c for c in colunas_exibicao if c in df_final.columns]].rename(columns={'rota_padrao': 'Rota'}).copy()
+            
+            st.dataframe(df_exibicao, use_container_width=True)
+            
+            # Exportar PDF
+            st.write("---")
+            resumo_7 = ["Volume de itens perdidos e danificados detalhados por rota, cidade e bairro."]
+            pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
+            st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
+        else:
+            st.warning("⚠️ Não foi possível carregar as informações de mapa da base de dados. O arquivo relatorionotas.csv foi carregado?")
+            # Se não tiver mapa, mostra só a tabela básica
+            st.dataframe(df_resumo_rotas.rename(columns={'rota_padrao': 'Rota'}).drop(columns=[coluna_rota]), use_container_width=True)
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         

@@ -91,14 +91,30 @@ def load_data():
     # 4. CARREGAR MAPAS E TRATATIVAS
     # ==========================================
     try:
-        df_coord = pd.read_csv("base_coordenadas.csv", sep=";", encoding="latin-1", skiprows=7, decimal=",")
-        df_coord.columns = [str(c).replace('\ufeff', '').strip() for c in df_coord.columns]
-        if 'ROTA' in df_coord.columns: df_coord = df_coord.rename(columns={'ROTA': 'Rota'})
-        if 'Rota' not in df_coord.columns and 'rota' in df_coord.columns: df_coord = df_coord.rename(columns={'rota': 'Rota'})
-        df_coord_agg = df_coord.groupby('Rota').agg({'LATITUDE': 'mean', 'LONGITUDE': 'mean'}).reset_index()
-        
-        df_mapa = pd.read_csv("rotas e bairros.csv", sep=";", encoding="latin-1", skiprows=7)
-        df_mapa_agg = df_mapa.groupby('Rota').agg({'Setor': 'first', 'Bairro': lambda x: ', '.join(x.dropna().unique()[:3])}).reset_index()
+        # Extraindo as coordenadas e bairros diretamente das bases oficiais!
+        df_notas = pd.read_csv("relatorionotas.csv", sep=";", encoding="latin-1", skiprows=7)
+        df_falta = pd.read_csv("relatorionotas_falta.csv", sep=";", encoding="latin-1", skiprows=7)
+        df_ref = pd.concat([df_notas, df_falta], ignore_index=True)
+
+        if 'Rota' in df_ref.columns:
+            df_geo = df_ref[['Rota', 'Cidade', 'Bairro', 'LATITUDE', 'LONGITUDE']].dropna(subset=['Rota'])
+            df_geo['LATITUDE'] = pd.to_numeric(df_geo['LATITUDE'].astype(str).str.replace(',', '.'), errors='coerce')
+            df_geo['LONGITUDE'] = pd.to_numeric(df_geo['LONGITUDE'].astype(str).str.replace(',', '.'), errors='coerce')
+            df_geo['Rota'] = df_geo['Rota'].astype(str).str.strip()
+
+            df_geo_agg = df_geo.groupby('Rota').agg({
+                'Cidade': lambda x: x.value_counts().index[0] if not x.dropna().empty else 'N/A',
+                'Bairro': lambda x: x.value_counts().index[0] if not x.dropna().empty else 'N/A',
+                'LATITUDE': 'mean',
+                'LONGITUDE': 'mean'
+            }).reset_index()
+
+            # Separamos em dois dataframes para respeitar o formato original do seu return
+            df_coord_agg = df_geo_agg[['Rota', 'LATITUDE', 'LONGITUDE']].copy()
+            df_mapa_agg = df_geo_agg[['Rota', 'Cidade', 'Bairro']].copy()
+        else:
+            df_coord_agg, df_mapa_agg = pd.DataFrame(), pd.DataFrame()
+
     except Exception as e:
         df_coord_agg, df_mapa_agg = pd.DataFrame(), pd.DataFrame()
 

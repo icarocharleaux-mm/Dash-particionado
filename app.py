@@ -341,65 +341,67 @@ try:
     with aba7:
         st.subheader("📍 Detalhamento de Ocorrências por Rota")
         
-        coluna_rota = 'rota' # Ajuste caso a coluna se chame 'Rota' ou 'ROTA' no seu df_uni
-        
-        # 1. Agrupar os volumes de DANOS
-        if not df_danos.empty and coluna_rota in df_danos.columns:
-            df_danos_rota = df_danos.groupby(coluna_rota)['Quantidade'].sum().reset_index(name='Qtd_Danos')
+        # --- BUSCA INTELIGENTE DA COLUNA DE ROTA ---
+        coluna_rota_real = None
+        for col in df_uni.columns:
+            if col.lower() == 'rota': # Procura a palavra 'rota' independente de maiúscula/minúscula
+                coluna_rota_real = col
+                break
+                
+        if coluna_rota_real:
+            # 1. Agrupar os volumes de DANOS
+            if not df_danos.empty and coluna_rota_real in df_danos.columns:
+                df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
+            else:
+                df_danos_rota = pd.DataFrame(columns=[coluna_rota_real, 'Qtd_Danos'])
+                
+            # 2. Agrupar os volumes de FALTAS
+            if not df_faltas.empty and coluna_rota_real in df_faltas.columns:
+                df_faltas_rota = df_faltas.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Faltas')
+            else:
+                df_faltas_rota = pd.DataFrame(columns=[coluna_rota_real, 'Qtd_Faltas'])
+                
+            # 3. Juntar Danos e Faltas na mesma tabela
+            df_resumo_rotas = pd.merge(df_danos_rota, df_faltas_rota, on=coluna_rota_real, how='outer').fillna(0)
+            df_resumo_rotas['Qtd_Danos'] = df_resumo_rotas['Qtd_Danos'].astype(int)
+            df_resumo_rotas['Qtd_Faltas'] = df_resumo_rotas['Qtd_Faltas'].astype(int)
+            df_resumo_rotas['Total_Volume'] = df_resumo_rotas['Qtd_Danos'] + df_resumo_rotas['Qtd_Faltas']
+            
+            # Limpeza na Rota para o PROCV funcionar
+            df_resumo_rotas['rota_padrao'] = df_resumo_rotas[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+
+            # 4. Cruzar com a base de Cidades e Bairros
+            if not df_mapa_agg.empty:
+                df_mapa_agg['Rota'] = df_mapa_agg['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                df_final = pd.merge(df_resumo_rotas, df_mapa_agg, left_on='rota_padrao', right_on='Rota', how='left')
+                df_final['Cidade'] = df_final['Cidade'].fillna('Não Identificada')
+                df_final['Bairro'] = df_final['Bairro'].fillna('Não Identificado')
+            else:
+                df_final = df_resumo_rotas.copy()
+                df_final['Cidade'] = 'Sem dados'
+                df_final['Bairro'] = 'Sem dados'
+
+            # Remove rotas com zero ocorrências
+            df_final = df_final[df_final['Total_Volume'] > 0].sort_values(by='Total_Volume', ascending=False).reset_index(drop=True)
+
+            # 5. Exibir a Tabela Final
+            st.markdown("### 📋 Tabela de Ofensores por Rota")
+            colunas_exibicao = ['rota_padrao', 'Cidade', 'Bairro', 'Qtd_Danos', 'Qtd_Faltas', 'Total_Volume']
+            df_exibicao = df_final[[c for c in colunas_exibicao if c in df_final.columns]].rename(columns={'rota_padrao': 'Rota'}).copy()
+            
+            st.dataframe(df_exibicao, use_container_width=True)
+
+            # 6. Exportar para PDF
+            st.write("---")
+            resumo_7 = ["Tabela consolidada do volume de itens perdidos e danificados por rota, cidade e bairro."]
+            pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
+            st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
+            
         else:
-            df_danos_rota = pd.DataFrame(columns=[coluna_rota, 'Qtd_Danos'])
-            
-        # 2. Agrupar os volumes de FALTAS
-        if not df_faltas.empty and coluna_rota in df_faltas.columns:
-            df_faltas_rota = df_faltas.groupby(coluna_rota)['Quantidade'].sum().reset_index(name='Qtd_Faltas')
-        else:
-            df_faltas_rota = pd.DataFrame(columns=[coluna_rota, 'Qtd_Faltas'])
-            
-        # 3. Juntar Danos e Faltas na mesma tabela
-        df_resumo_rotas = pd.merge(df_danos_rota, df_faltas_rota, on=coluna_rota, how='outer').fillna(0)
-        df_resumo_rotas['Qtd_Danos'] = df_resumo_rotas['Qtd_Danos'].astype(int)
-        df_resumo_rotas['Qtd_Faltas'] = df_resumo_rotas['Qtd_Faltas'].astype(int)
-        df_resumo_rotas['Total_Volume'] = df_resumo_rotas['Qtd_Danos'] + df_resumo_rotas['Qtd_Faltas']
-        
-        # Limpeza severa na Rota para o PROCV funcionar (converte pra texto, tira ".0" e tira espaços)
-        df_resumo_rotas['rota_padrao'] = df_resumo_rotas[coluna_rota].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
 
-        # 4. Cruzar com a base de Cidades e Bairros (que veio lá do seu dados.py)
-        if not df_mapa_agg.empty:
-            # Aplica a mesma limpeza na base que veio da Natura
-            df_mapa_agg['Rota'] = df_mapa_agg['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-            
-            # Realiza o cruzamento
-            df_final = pd.merge(df_resumo_rotas, df_mapa_agg, left_on='rota_padrao', right_on='Rota', how='left')
-            
-            # Preenche quem não foi encontrado
-            df_final['Cidade'] = df_final['Cidade'].fillna('Não Identificada')
-            df_final['Bairro'] = df_final['Bairro'].fillna('Não Identificado')
-        else:
-            # Se o arquivo da Natura falhar lá no dados.py, a tabela ainda funciona (mas sem cidade/bairro)
-            df_final = df_resumo_rotas.copy()
-            df_final['Cidade'] = 'Sem dados'
-            df_final['Bairro'] = 'Sem dados'
-
-        # Remove rotas com zero ocorrências e organiza da pior para a melhor
-        df_final = df_final[df_final['Total_Volume'] > 0].sort_values(by='Total_Volume', ascending=False).reset_index(drop=True)
-
-        # 5. Exibir a Tabela Final
-        st.markdown("### 📋 Tabela de Ofensores por Rota")
-        colunas_exibicao = ['rota_padrao', 'Cidade', 'Bairro', 'Qtd_Danos', 'Qtd_Faltas', 'Total_Volume']
-        
-        # Filtra só as colunas que importam e renomeia a rota para ficar bonito
-        df_exibicao = df_final[[c for c in colunas_exibicao if c in df_final.columns]].rename(columns={'rota_padrao': 'Rota'}).copy()
-        
-        st.dataframe(df_exibicao, use_container_width=True)
-
-        # 6. Exportar para PDF
-        st.write("---")
-        resumo_7 = ["Tabela consolidada do volume de itens perdidos e danificados por rota, cidade e bairro."]
-        pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
-        st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
     with aba8:
-        st.subheader("📝 Controle de Tratativas")
+      st.subheader("📝 Controle de Tratativas")
         
         @st.cache_data(ttl=600)
         def carregar_excel_nuvem_turbinado(url, aba):

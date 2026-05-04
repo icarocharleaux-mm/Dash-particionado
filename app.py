@@ -181,6 +181,7 @@ try:
             # ==========================================
             total_itens_dano = df_danos['Quantidade'].sum()
             total_ocorrencias_dano = len(df_danos)
+            media_itens_por_ocorrencia = df_uni["Quantidade"].sum() / total_ocorrencias
             
             c1, c2 = st.columns(2)
             c1.metric("📦 Volume de Itens Danificados", f"{total_itens_dano:,.0f}", "Soma de Itens")

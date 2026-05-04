@@ -425,12 +425,13 @@ try:
     if not df_uni.empty:
         df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
         
-        # --- LIMPEZA DE DADOS: Ocorrências sem responsabilidade logística ---
+        # --- NOVO FILTRO: Capturando as ocorrências onde a logística é isenta ---
+        f_isento = pd.DataFrame() # Inicia vazio por segurança
         coluna_texto = 'description' 
         
         if coluna_texto in df_cli.columns:
-            # Lista de palavras-chave e expressões que isentam a operação
-            termos_ignorados = [
+            # Lista de palavras que queremos PROCURAR para jogar no dossiê
+            termos_origem = [
                 r'falta de volume', 
                 r'volume (inteiro|faltante)', 
                 r'sacola', 
@@ -438,17 +439,20 @@ try:
                 r'trocado', 
                 r'inversão'
             ]
-            padrao_exclusao = '|'.join(termos_ignorados)
+            padrao_busca = '|'.join(termos_origem)
             
-            # Filtra a base mantendo apenas o que NÃO contém esses termos
-            df_cli = df_cli[~df_cli[coluna_texto].str.contains(padrao_exclusao, case=False, na=False, regex=True)]
-        # ---------------------------------------------------------------------
+            # Agora estamos filtrando as linhas que CONTÊM esses termos
+            f_isento = df_cli[df_cli[coluna_texto].str.contains(padrao_busca, case=False, na=False, regex=True)].copy()
+            if not f_isento.empty:
+                # Criamos um motivo claro para mostrar no painel
+                f_isento['Motivo'] = 'Isento: Erro de Origem / Falta'
+        # --------------------------------------------------------------------------
 
         # Filtro 1: Volume Crítico
         f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
         f_vol['Motivo'] = 'Volume Crítico'
         
-        # Filtro 2: Reclamação Idêntica (Mesmo cliente, mesma quantidade)
+        # Filtro 2: Reclamação Idêntica
         df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
         cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
         cli_susp = cli_susp[cli_susp['V'] > 1]
@@ -461,15 +465,17 @@ try:
         f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
         f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
         
-        # Consolidação e Exibição dos Alertas
-        alertas = pd.concat([f_vol, f_rep, f_mot])
+        # Consolidação: Agora juntamos o f_vol, f_rep, f_mot E o f_isento
+        alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])
         
         if not alertas.empty:
             alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
             alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
             st.error(f"⚠️ {len(alertas)} Indícios Detectados")
             
-            colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal']
+            # Adicionei o 'description' nas colunas de exibição para você ler o texto na tabela
+            colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal', 'description']
+            
             colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]
             df_exibicao = alertas[colunas_existentes].copy()
             

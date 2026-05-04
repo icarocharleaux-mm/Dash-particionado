@@ -419,39 +419,63 @@ try:
             key="pdf_aba8"
         )
     with aba9:
-        st.subheader("🚨 Dossiê de Fraudes")
-        alertas = pd.DataFrame()
-        if not df_uni.empty:
-            df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
-            f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
-            f_vol['Motivo'] = 'Volume Crítico'
+    st.subheader("🚨 Dossiê de Fraudes")
+    alertas = pd.DataFrame()
+    
+    if not df_uni.empty:
+        df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
+        
+        # --- LIMPEZA DE DADOS: Ocorrências sem responsabilidade logística ---
+        coluna_texto = 'description' 
+        
+        if coluna_texto in df_cli.columns:
+            # Lista de palavras-chave e expressões que isentam a operação
+            termos_ignorados = [
+                r'falta de volume', 
+                r'volume (inteiro|faltante)', 
+                r'sacola', 
+                r'presente', 
+                r'trocado', 
+                r'inversão'
+            ]
+            padrao_exclusao = '|'.join(termos_ignorados)
             
-            df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
-            cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
-            cli_susp = cli_susp[cli_susp['V'] > 1]
-            f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
-            f_rep['Motivo'] = 'Reclamação Idêntica'
+            # Filtra a base mantendo apenas o que NÃO contém esses termos
+            df_cli = df_cli[~df_cli[coluna_texto].str.contains(padrao_exclusao, case=False, na=False, regex=True)]
+        # ---------------------------------------------------------------------
+
+        # Filtro 1: Volume Crítico
+        f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
+        f_vol['Motivo'] = 'Volume Crítico'
+        
+        # Filtro 2: Reclamação Idêntica (Mesmo cliente, mesma quantidade)
+        df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
+        cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
+        cli_susp = cli_susp[cli_susp['V'] > 1]
+        f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
+        f_rep['Motivo'] = 'Reclamação Idêntica'
+        
+        # Filtro 3: Motoristas de Risco
+        mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
+        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 50]['Motorista']
+        f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
+        f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
+        
+        # Consolidação e Exibição dos Alertas
+        alertas = pd.concat([f_vol, f_rep, f_mot])
+        
+        if not alertas.empty:
+            alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
+            alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
+            st.error(f"⚠️ {len(alertas)} Indícios Detectados")
             
-            mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
-            lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 50]['Motorista']
-            f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
-            f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
+            colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal']
+            colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]
+            df_exibicao = alertas[colunas_existentes].copy()
             
-            alertas = pd.concat([f_vol, f_rep, f_mot])
-            if not alertas.empty:
-                alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
-                alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
-                st.error(f"⚠️ {len(alertas)} Indícios Detectados")
-                colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal']
-                df_exibicao = alertas[colunas_exibicao].copy()
-                st.dataframe(df_exibicao, use_container_width=True)
-            else: st.success("✅ Tudo limpo no filtro atual.")
-                
-        # Exportar Aba 9
-        st.write("---")
-        resumo_9 = [f"Total de alertas do sistema: {len(alertas)} anomalias."]
-        pdf_aba9 = gerar_pdf_dinamico("Dossie de Fraude e Alertas", resumo_9, alertas)
-        st.download_button("📄 Baixar Relatório: Fraudes (PDF)", data=pdf_aba9, file_name="Dossie_Fraudes.pdf", mime="application/pdf", key="pdf_aba9")
+            st.dataframe(df_exibicao, use_container_width=True)
+        else: 
+            st.success("✅ Tudo limpo no filtro atual.")
 
     with aba10:
         st.subheader("📋 Plano de Ação e Diretrizes")

@@ -323,7 +323,6 @@ try:
                 break
                 
         if coluna_rota_real:
-            # --- TABELA DE ROTAS (Como já estava funcionando) ---
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
             else:
@@ -365,40 +364,68 @@ try:
             st.write("---")
             st.markdown("### 📈 Investigação Temporal da Rota")
             
-            # Puxa a lista de rotas direto da tabela final para não mostrar rotas vazias
             lista_rotas = df_exibicao['Rota'].unique().tolist()
             
             if lista_rotas:
-                # Cria colunas para organizar o layout visualmente
                 col_filtro, col_vazia = st.columns([1, 2])
                 with col_filtro:
                     rota_selecionada = st.selectbox("Selecione a rota que deseja analisar:", options=lista_rotas)
                 
-                # Prepara a base unificada limpando o número da rota (mesma regra do PROCV)
                 df_uni_temp = df_uni.copy()
                 df_uni_temp['rota_padrao'] = df_uni_temp[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
-                # Filtra apenas a rota selecionada
                 df_rota_hist = df_uni_temp[df_uni_temp['rota_padrao'] == str(rota_selecionada)]
                 
                 if not df_rota_hist.empty and 'Periodo' in df_rota_hist.columns:
-                    # Agrupa os dados por Período e Tipo (Dano/Falta)
+                    
+                    # 1. Agrupamento para o Gráfico (Dano vs Falta)
                     df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
                     df_hist_grp = df_hist_grp.sort_values(by='Periodo')
                     
-                    # Cria um gráfico de barras lado a lado
+                    # 2. Agrupamento Totalizador para o seu cálculo de variação
+                    df_total = df_rota_hist.groupby('Periodo')['Quantidade'].sum().reset_index()
+                    df_total = df_total.sort_values(by='Periodo')
+                    
+                    # Verifica se temos pelo menos dois períodos para poder comparar (Evita erro no iloc e pct_change)
+                    if len(df_total) > 1:
+                        total_inicio = df_total['Quantidade'].iloc[0]
+                        total_fim = df_total['Quantidade'].iloc[-1]
+                        
+                        variacao = ((total_fim - total_inicio) / max(total_inicio, 1)) * 100
+                        
+                        # Seu indicador visual!
+                        if variacao > 20:
+                            st.error(f"🚨 A rota apresentou piora de {variacao:.1f}% no período analisado.")
+                        elif variacao < -20:
+                            st.success(f"✅ A rota apresentou melhoria de {abs(variacao):.1f}% no período analisado.")
+                        else:
+                            st.warning("⚠️ A rota apresenta estabilidade operacional.")
+                            
+                        # Aplicação do seu pct_change para detalhamento na tabela
+                        df_total['Variacao_%'] = (df_total['Quantidade'].pct_change() * 100).round(1).fillna(0)
+                        
+                    else:
+                        st.info("📊 A rota possui ocorrências em apenas um período. Histórico insuficiente para calcular variação.")
+
+                    # Gráfico
                     fig_hist = px.bar(
                         df_hist_grp, 
                         x='Periodo', 
                         y='Quantidade', 
                         color='Tipo_Ocorrencia',
                         barmode='group',
-                        color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'}, # Azul pra dano, vermelho pra falta
+                        color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'},
                         text_auto='.0f',
                         title=f"Evolução de Faltas e Danos - Rota {rota_selecionada}"
                     )
                     fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
                     st.plotly_chart(fig_hist, use_container_width=True)
+                    
+                    # Exibe a tabela com o detalhe do pct_change se houver histórico
+                    if len(df_total) > 1:
+                        with st.expander("Ver detalhamento do crescimento período a período"):
+                            st.dataframe(df_total.style.format({'Variacao_%': '{:.1f}%'}), use_container_width=True)
+
                 else:
                     st.info("Não há histórico de datas (coluna 'Periodo') para desenhar a linha do tempo desta rota.")
 

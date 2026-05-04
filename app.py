@@ -419,7 +419,7 @@ try:
             key="pdf_aba8"
         )
     with aba9:
-    st.subheader("🚨 Dossiê de Fraudes")
+      st.subheader("🚨 Dossiê de Fraudes")
     alertas = pd.DataFrame()
     
     if not df_uni.empty:

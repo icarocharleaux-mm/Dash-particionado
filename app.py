@@ -436,7 +436,9 @@ try:
                 r'volume (inteiro|faltante)', 
                 r'sacola', 
                 r'presente', 
-                r'trocado', 
+                r'trocado',
+                r'Volume faltante(s)',
+                r'SACOLA PRESENTE',
                 r'inversão'
             ]
             padrao_busca = '|'.join(termos_origem)
@@ -449,7 +451,7 @@ try:
         # --------------------------------------------------------------------------
 
         # Filtro 1: Volume Crítico
-        f_vol = df_cli[df_cli['Quantidade'] >= 900].copy()
+        f_vol = df_cli[df_cli['Quantidade'] >= 50].copy()
         f_vol['Motivo'] = 'Volume Crítico'
         
         # Filtro 2: Reclamação Idêntica
@@ -461,9 +463,9 @@ try:
         
         # Filtro 3: Motoristas de Risco
         mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
-        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 50]['Motorista']
+        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 5]['Motorista']
         f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
-        f_mot['Motivo'] = 'Motorista Risco: +50 Clientes Afetados'
+        f_mot['Motivo'] = 'Motorista Risco: +5 Clientes Afetados'
         
         # Consolidação: Agora juntamos o f_vol, f_rep, f_mot E o f_isento
         alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])

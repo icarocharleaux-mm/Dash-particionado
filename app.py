@@ -339,7 +339,7 @@ try:
         st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
     with aba7:
-        st.subheader("📍 Detalhamento de Ocorrências por Rota")
+      st.subheader("📍 Detalhamento de Ocorrências por Rota")
         
         # --- BUSCA INTELIGENTE DA COLUNA DE ROTA ---
         coluna_rota_real = None

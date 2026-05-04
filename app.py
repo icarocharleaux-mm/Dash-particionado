@@ -176,15 +176,30 @@ try:
 
     with aba2:
         if not df_danos.empty:
+            # ==========================================
+            # 1. CÁLCULO DE VOLUMES E MÉTRICAS (Espelhado da Aba 3)
+            # ==========================================
+            total_itens_dano = df_danos['Quantidade'].sum()
+            total_ocorrencias_dano = len(df_danos)
+            
+            c1, c2 = st.columns(2)
+            c1.metric("📦 Volume de Itens Danificados", f"{total_itens_dano:,.0f}", "Soma de Itens")
+            c2.metric("📝 Total de Registros (NC)", total_ocorrencias_dano, "Linhas na Base", delta_color="off")
+            
+            st.write("---")
+            # ==========================================
+
             st.markdown("### 📊 Análise de Danos: Top Motoristas e Filial")
             fig_m = plot_top_motoristas(df_danos, 'Blues')
             if fig_m: st.plotly_chart(fig_m, use_container_width=True)
+            
             st.write("---")
+            
             fig_f = plot_comparativo_filial(df_danos, 'Blues')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
             
             # ==========================================
-            # NOVO GRÁFICO DE CATEGORIAS - SÓ DANOS
+            # GRÁFICO DE CATEGORIAS - SÓ DANOS
             # ==========================================
             st.write("---")
             st.markdown("### 🏷️ Categorias com Mais Danos")

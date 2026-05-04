@@ -348,7 +348,7 @@ try:
                 coluna_rota_real = col
                 break
                 
-        if coluna_rota_real:
+      if coluna_rota_real:
             # 1. Agrupar os volumes de DANOS
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')

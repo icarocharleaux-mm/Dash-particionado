@@ -14,6 +14,7 @@ from filtros import aplicar_filtros_barra_lateral
 from graficos import (plot_top_motoristas, plot_comparativo_filial, plot_pizza_tipo_ocorrencia, 
                       plot_curva_abc, plot_heatmap_recorrencia, plot_mapa_rotas,
                       plot_evolucao_temporal) 
+
 # Configuração da Página e CSS
 st.set_page_config(page_title="Painel Integrado: Danos & Faltas", layout="wide", page_icon="🚀")
 st.markdown("""
@@ -23,6 +24,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- FUNÇÕES GLOBAIS ---
 def organizar_tabela(df_entrada):
     if df_entrada.empty: return df_entrada
     df = df_entrada.copy()
@@ -31,7 +33,6 @@ def organizar_tabela(df_entrada):
     outras_colunas = [c for c in df.columns if c not in colunas_iniciais and str(c).lower() not in ['transportadora', 'nome_transportadora', 'desvio_logistico', 'tipo_ocorrencia', 'mes_limpo', 'mes', 'data_filtro']]
     return df[colunas_iniciais + outras_colunas]
 
-# --- NOVA FUNÇÃO DE PDF DINÂMICO ---
 def gerar_pdf_dinamico(titulo, linhas_resumo, df_tabela=None):
     pdf = FPDF()
     pdf.add_page()
@@ -68,6 +69,17 @@ def gerar_pdf_dinamico(titulo, linhas_resumo, df_tabela=None):
             
     return bytes(pdf.output())
 
+# Função de Cache movida para o nível global (soluciona o erro de indentação)
+@st.cache_data(ttl=600)
+def carregar_excel_nuvem_turbinado(url, aba):
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    response = requests.get(url, headers=headers, allow_redirects=True)
+    response.raise_for_status() 
+    return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
+
+# ==========================================
+# INÍCIO DO APLICATIVO
+# ==========================================
 try:
     # 1. DADOS: Extração
     df_danos_base, df_faltas_base, df_uni_base, df_mapa_agg, df_coord_agg, df_trat1_base, df_trat2_base = load_data()
@@ -150,9 +162,6 @@ try:
                 fig_p = px.pie(pizza, names='Tipo_Ocorrencia', values='Quantidade', hole=0.4, color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'})
                 st.plotly_chart(fig_p, use_container_width=True)
 
-        # ==========================================
-        # NOVO GRÁFICO DE CATEGORIAS - VISÃO GERAL
-        # ==========================================
         st.write("---")
         st.markdown("**🏷️ Top 10 Categorias Afetadas (Geral)**")
         if not df_uni.empty and 'Categoria' in df_uni.columns:
@@ -167,7 +176,6 @@ try:
             if not df_uni.empty: st.dataframe(organizar_tabela(df_uni), use_container_width=True)
             else: st.info("Nenhum dado encontrado para os filtros atuais.")
                 
-        # Exportar Aba 1
         st.write("---")
         top_geral = df_uni.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_uni.empty else None
         resumo_1 = [f"Total Geral: {total_ocorrencias} ocorrencias", f"Danos: {len(df_danos)}", f"Faltas: {len(df_faltas)}"]
@@ -176,9 +184,6 @@ try:
 
     with aba2:
         if not df_danos.empty:
-            # ==========================================
-            # 1. CÁLCULO DE VOLUMES E MÉTRICAS
-            # ==========================================
             total_itens_dano = df_danos['Quantidade'].sum()
             total_ocorrencias_dano = len(df_danos)
             media_dano = total_itens_dano / total_ocorrencias_dano
@@ -189,7 +194,6 @@ try:
             c3.metric("⚖️ Média Itens/Ocorrência", f"{media_dano:.1f}", "Itens por NC", delta_color="off")
             
             st.write("---")
-            # ==========================================
 
             st.markdown("### 📊 Análise de Danos: Top Motoristas e Filial")
             fig_m = plot_top_motoristas(df_danos, 'Blues')
@@ -200,9 +204,6 @@ try:
             fig_f = plot_comparativo_filial(df_danos, 'Blues')
             if fig_f: st.plotly_chart(fig_f, use_container_width=True)
             
-            # ==========================================
-            # GRÁFICO DE CATEGORIAS - SÓ DANOS
-            # ==========================================
             st.write("---")
             st.markdown("### 🏷️ Categorias com Mais Danos")
             if 'Categoria' in df_danos.columns:
@@ -221,7 +222,6 @@ try:
         else:
             st.info("Nenhum dado de dano encontrado para os filtros atuais.")
             
-        # Exportar Aba 2
         st.write("---")
         top_danos = df_danos.groupby('Motorista')['Quantidade'].sum().nlargest(15).reset_index() if not df_danos.empty else None
         resumo_2 = [f"Ocorrencias Exclusivas de Dano: {len(df_danos)} registros vinculados."]
@@ -230,7 +230,6 @@ try:
 
     with aba3:
         if not df_faltas.empty:
-            # 1. CÁLCULO DE VOLUMES
             total_itens_falta = df_faltas['Quantidade'].sum()
             total_ocorrencias_falta = len(df_faltas)
             media_falta = total_itens_falta / total_ocorrencias_falta
@@ -242,53 +241,31 @@ try:
             
             st.write("---")
 
-            # 2. GRÁFICO MOTORISTAS COM HOVER DA FILIAL
             st.markdown("### 📊 Top 10 Motoristas (Volume de Itens Faltantes)")
-            
-            # Agrupamento para o ranking
             df_mot_falta = df_faltas.groupby('Motorista')['Quantidade'].sum().nlargest(10).reset_index()
-            
-            # Mapeamento da Filial (pega a filial mais frequente de cada motorista para exibir no hover)
-            filial_map = df_faltas.groupby("Motorista")["Filial"].agg(
-                lambda x: x.value_counts().index[0] if not x.empty else "Não Identificado"
-            ).to_dict()
+            filial_map = df_faltas.groupby("Motorista")["Filial"].agg(lambda x: x.value_counts().index[0] if not x.empty else "Não Identificado").to_dict()
             df_mot_falta["Filial"] = df_mot_falta["Motorista"].map(filial_map)
             
-            # Construção do gráfico com hover_data
-            fig_m = px.bar(
-                df_mot_falta, 
-                x='Quantidade', 
-                y='Motorista', 
-                orientation='h',
-                color='Quantidade', 
-                color_continuous_scale='Reds', 
-                text_auto='.0f',
-                hover_data=['Filial']  # <--- Aqui a Filial volta a aparecer no mouse
-            )
+            fig_m = px.bar(df_mot_falta, x='Quantidade', y='Motorista', orientation='h', color='Quantidade', color_continuous_scale='Reds', text_auto='.0f', hover_data=['Filial'])
             fig_m.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
             st.plotly_chart(fig_m, use_container_width=True)
             
             st.write("---")
 
-            # 3. GRÁFICO FILIAL (Volume Total)
             st.markdown("### 🏢 Volume de Faltas por Filial")
             df_fil_falta = df_faltas.groupby('Filial')['Quantidade'].sum().sort_values(ascending=False).reset_index()
-            fig_f = px.bar(df_fil_falta, x='Filial', y='Quantidade',
-                           color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+            fig_f = px.bar(df_fil_falta, x='Filial', y='Quantidade', color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
             st.plotly_chart(fig_f, use_container_width=True)
             
             st.write("---")
 
-            # 4. GRÁFICO CATEGORIAS
             st.markdown("### 🏷️ Categorias com Maior Perda Física")
             if 'Categoria' in df_faltas.columns:
                 cat_faltas = df_faltas.groupby('Categoria')['Quantidade'].sum().nlargest(10).reset_index()
-                fig_cat3 = px.bar(cat_faltas, x='Quantidade', y='Categoria', orientation='h', 
-                                  color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+                fig_cat3 = px.bar(cat_faltas, x='Quantidade', y='Categoria', orientation='h', color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
                 fig_cat3.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
                 st.plotly_chart(fig_cat3, use_container_width=True)
         
-        # TABELA E EXPORTAÇÃO
         st.markdown("### 📋 Tabela Organizada - Faltas")
         if not df_faltas.empty:
             df_tabela_formatada = organizar_tabela(df_faltas)
@@ -297,6 +274,7 @@ try:
             st.dataframe(df_exibicao, use_container_width=True)
         else:
             st.info("Nenhum dado de falta encontrado.")
+
     with aba4:
         st.subheader("🎯 Classificação ABC por Motorista (Reativa)")
         fig_abc, df_abc = plot_curva_abc(df_uni)
@@ -305,7 +283,6 @@ try:
             st.dataframe(df_abc, use_container_width=True)
         else: st.info("Aguardando dados filtrados para calcular a Curva ABC.")
         
-        # Exportar Aba 4
         st.write("---")
         resumo_4 = ["Classificacao de ofensores pelo metodo ABC (Filtro aplicado na lateral)."]
         pdf_aba4 = gerar_pdf_dinamico("Relatorio - Curva ABC", resumo_4, df_abc)
@@ -320,7 +297,6 @@ try:
             st.dataframe(df_recor_m, use_container_width=True)
         else: st.info("Ajuste os filtros para visualizar a recorrência.")
         
-        # Exportar Aba 5
         st.write("---")
         resumo_5 = ["Acompanhamento dos Motoristas com maior reincidencia nos ultimos meses."]
         pdf_aba5 = gerar_pdf_dinamico("Recorrencia - Motoristas", resumo_5, df_recor_m)
@@ -328,11 +304,10 @@ try:
 
     with aba6:
         st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
-        fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente') # Corrigido captura do df
+        fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente')
         if fig_heat_c: st.plotly_chart(fig_heat_c, use_container_width=True)
         else: st.info("Nenhum cliente válido para análise na seleção atual.")
         
-        # Exportar Aba 6
         st.write("---")
         resumo_6 = ["Acompanhamento dos Clientes com maior volume de ocorrencias reincidentes."]
         pdf_aba6 = gerar_pdf_dinamico("Recorrencia - Clientes", resumo_6, df_recor_c if fig_heat_c else None)
@@ -341,7 +316,6 @@ try:
     with aba7:
         st.subheader("📍 Detalhamento de Ocorrências por Rota")
         
-        # --- BUSCA INTELIGENTE DA COLUNA DE ROTA ---
         coluna_rota_real = None
         for col in df_uni.columns:
             if col.lower() == 'rota':
@@ -349,28 +323,23 @@ try:
                 break
                 
         if coluna_rota_real:
-            # 1. Agrupar os volumes de DANOS
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
             else:
                 df_danos_rota = pd.DataFrame(columns=[coluna_rota_real, 'Qtd_Danos'])
                 
-            # 2. Agrupar os volumes de FALTAS
             if not df_faltas.empty and coluna_rota_real in df_faltas.columns:
                 df_faltas_rota = df_faltas.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Faltas')
             else:
                 df_faltas_rota = pd.DataFrame(columns=[coluna_rota_real, 'Qtd_Faltas'])
                 
-            # 3. Juntar Danos e Faltas na mesma tabela
             df_resumo_rotas = pd.merge(df_danos_rota, df_faltas_rota, on=coluna_rota_real, how='outer').fillna(0)
             df_resumo_rotas['Qtd_Danos'] = df_resumo_rotas['Qtd_Danos'].astype(int)
             df_resumo_rotas['Qtd_Faltas'] = df_resumo_rotas['Qtd_Faltas'].astype(int)
             df_resumo_rotas['Total_Volume'] = df_resumo_rotas['Qtd_Danos'] + df_resumo_rotas['Qtd_Faltas']
             
-            # Limpeza na Rota para o PROCV funcionar
             df_resumo_rotas['rota_padrao'] = df_resumo_rotas[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
-            # 4. Cruzar com a base de Cidades e Bairros
             if not df_mapa_agg.empty:
                 df_mapa_agg['Rota'] = df_mapa_agg['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 df_final = pd.merge(df_resumo_rotas, df_mapa_agg, left_on='rota_padrao', right_on='Rota', how='left')
@@ -381,17 +350,14 @@ try:
                 df_final['Cidade'] = 'Sem dados'
                 df_final['Bairro'] = 'Sem dados'
 
-            # Remove rotas com zero ocorrências
             df_final = df_final[df_final['Total_Volume'] > 0].sort_values(by='Total_Volume', ascending=False).reset_index(drop=True)
 
-            # 5. Exibir a Tabela Final
             st.markdown("### 📋 Tabela de Ofensores por Rota")
             colunas_exibicao = ['rota_padrao', 'Cidade', 'Bairro', 'Qtd_Danos', 'Qtd_Faltas', 'Total_Volume']
             df_exibicao = df_final[[c for c in colunas_exibicao if c in df_final.columns]].rename(columns={'rota_padrao': 'Rota'}).copy()
             
             st.dataframe(df_exibicao, use_container_width=True)
 
-            # 6. Exportar para PDF
             st.write("---")
             resumo_7 = ["Tabela consolidada do volume de itens perdidos e danificados por rota, cidade e bairro."]
             pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
@@ -401,36 +367,20 @@ try:
             st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
 
     with aba8:
-      st.subheader("📝 Controle de Tratativas")
-        
-@st.cache_data(ttl=600)
-def carregar_excel_nuvem_turbinado(url, aba):
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-            response = requests.get(url, headers=headers, allow_redirects=True)
-            response.raise_for_status() 
-            return pd.read_excel(BytesIO(response.content), sheet_name=aba, engine='openpyxl')
-
-        # LINK CONSOLIDADO APLICADO AQUI
+        st.subheader("📝 Controle de Tratativas")
         link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download=1"
 
-        # --- SESSÃO 1: TRATATIVAS DE DANOS ---
         st.markdown("### 📦 Tratativas - Danos")
         df_exibicao_danos = None
         
         try:
             with st.spinner("Sincronizando Danos com o OneDrive..."):
-                # Busca aba "danos"
                 df_tratativas_danos = carregar_excel_nuvem_turbinado(link_consolidado, "danos").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Danos conectadas com sucesso!")
             
             with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
                 todas_colunas_danos = df_tratativas_danos.columns.tolist()
-                colunas_selecionadas_danos = st.multiselect(
-                    "Selecione as colunas desejadas:",
-                    options=todas_colunas_danos,
-                    default=todas_colunas_danos,
-                    key="multi_danos"
-                )
+                colunas_selecionadas_danos = st.multiselect("Selecione as colunas desejadas:", options=todas_colunas_danos, default=todas_colunas_danos, key="multi_danos")
             
             df_exibicao_danos = df_tratativas_danos[colunas_selecionadas_danos]
             st.dataframe(df_exibicao_danos, use_container_width=True)
@@ -441,24 +391,17 @@ def carregar_excel_nuvem_turbinado(url, aba):
 
         st.write("---") 
 
-        # --- SESSÃO 2: TRATATIVAS DE FALTAS ---
         st.markdown("### 🛍️ Tratativas - Faltas")
         df_exibicao_faltas = None
         
         try:
             with st.spinner("Sincronizando Faltas com o OneDrive..."):
-                # Busca aba "faltas"
                 df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_consolidado, "faltas").dropna(how='all').head(5).reset_index(drop=True)
             st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
             
             with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
                 todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
-                colunas_selecionadas_faltas = st.multiselect(
-                    "Selecione as colunas desejadas:",
-                    options=todas_colunas_faltas,
-                    default=todas_colunas_faltas,
-                    key="multi_faltas"
-                )
+                colunas_selecionadas_faltas = st.multiselect("Selecione as colunas desejadas:", options=todas_colunas_faltas, default=todas_colunas_faltas, key="multi_faltas")
                 
             df_exibicao_faltas = df_tratativas_faltas[colunas_selecionadas_faltas]
             st.dataframe(df_exibicao_faltas, use_container_width=True)
@@ -467,87 +410,60 @@ def carregar_excel_nuvem_turbinado(url, aba):
             st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
             st.info(f"Detalhe técnico: {e}")
             
-        # --- EXPORTAR ABA 8 ---
         st.write("---")
         resumo_8 = ["Extracao rapida do controle online de tratativas e ressarcimentos."]
-        
-        # Envia para o PDF a tabela já com as colunas filtradas pelo usuário
         df_pdf_8 = df_exibicao_danos if df_exibicao_danos is not None else df_exibicao_faltas
-        
         pdf_aba8 = gerar_pdf_dinamico("Controle de Tratativas (Nuvem)", resumo_8, df_pdf_8)
-        st.download_button(
-            label="📄 Baixar Relatório: Tratativas (PDF)", 
-            data=pdf_aba8, 
-            file_name="Controle_Tratativas.pdf", 
-            mime="application/pdf", 
-            key="pdf_aba8"
-        )
-    with aba9:
-      st.subheader("🚨 Dossiê de Fraudes")
-    alertas = pd.DataFrame()
-    
-    if not df_uni.empty:
-        df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
-        
-        # --- NOVO FILTRO: Capturando as ocorrências onde a logística é isenta ---
-        f_isento = pd.DataFrame() # Inicia vazio por segurança
-        coluna_texto = 'description' 
-        
-        if coluna_texto in df_cli.columns:
-            # Lista de palavras que queremos PROCURAR para jogar no dossiê
-            termos_origem = [
-                r'falta de volume', 
-                r'volume (inteiro|faltante)', 
-                r'sacola', 
-                r'presente', 
-                r'trocado',
-                r'Volume faltante(s)',
-                r'SACOLA PRESENTE',
-                r'inversão'
-            ]
-            padrao_busca = '|'.join(termos_origem)
-            
-            # Agora estamos filtrando as linhas que CONTÊM esses termos
-            f_isento = df_cli[df_cli[coluna_texto].str.contains(padrao_busca, case=False, na=False, regex=True)].copy()
-            if not f_isento.empty:
-                # Criamos um motivo claro para mostrar no painel
-                f_isento['Motivo'] = 'Isento: Erro de Origem / Falta'
-        # --------------------------------------------------------------------------
+        st.download_button(label="📄 Baixar Relatório: Tratativas (PDF)", data=pdf_aba8, file_name="Controle_Tratativas.pdf", mime="application/pdf", key="pdf_aba8")
 
-        # Filtro 1: Volume Crítico
-        f_vol = df_cli[df_cli['Quantidade'] >= 50].copy()
-        f_vol['Motivo'] = 'Volume Crítico'
+    with aba9:
+        st.subheader("🚨 Dossiê de Fraudes")
+        alertas = pd.DataFrame()
         
-        # Filtro 2: Reclamação Idêntica
-        df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
-        cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
-        cli_susp = cli_susp[cli_susp['V'] > 1]
-        f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
-        f_rep['Motivo'] = 'Reclamação Idêntica'
-        
-        # Filtro 3: Motoristas de Risco
-        mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
-        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 20]['Motorista']
-        f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
-        f_mot['Motivo'] = 'Motorista Risco: +20 Clientes Afetados'
-        
-        # Consolidação: Agora juntamos o f_vol, f_rep, f_mot E o f_isento
-        alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])
-        
-        if not alertas.empty:
-            alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
-            alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
-            st.error(f"⚠️ {len(alertas)} Indícios Detectados")
+        if not df_uni.empty:
+            df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
             
-            # Adicionei o 'description' nas colunas de exibição para você ler o texto na tabela
-            colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal', 'description']
+            f_isento = pd.DataFrame()
+            coluna_texto = 'description' 
             
-            colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]
-            df_exibicao = alertas[colunas_existentes].copy()
+            if coluna_texto in df_cli.columns:
+                termos_origem = [
+                    r'falta de volume', r'volume (inteiro|faltante)', r'sacola', 
+                    r'presente', r'trocado', r'Volume faltante(s)', r'SACOLA PRESENTE', r'inversão'
+                ]
+                padrao_busca = '|'.join(termos_origem)
+                f_isento = df_cli[df_cli[coluna_texto].str.contains(padrao_busca, case=False, na=False, regex=True)].copy()
+                if not f_isento.empty:
+                    f_isento['Motivo'] = 'Isento: Erro de Origem / Falta'
+
+            f_vol = df_cli[df_cli['Quantidade'] >= 50].copy()
+            f_vol['Motivo'] = 'Volume Crítico'
             
-            st.dataframe(df_exibicao, use_container_width=True)
-        else: 
-            st.success("✅ Tudo limpo no filtro atual.")
+            df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
+            cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
+            cli_susp = cli_susp[cli_susp['V'] > 1]
+            f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
+            f_rep['Motivo'] = 'Reclamação Idêntica'
+            
+            mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
+            lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 20]['Motorista']
+            f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
+            f_mot['Motivo'] = 'Motorista Risco: +20 Clientes Afetados'
+            
+            alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])
+            
+            if not alertas.empty:
+                alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
+                alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
+                st.error(f"⚠️ {len(alertas)} Indícios Detectados")
+                
+                colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal', 'description']
+                colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]
+                df_exibicao = alertas[colunas_existentes].copy()
+                
+                st.dataframe(df_exibicao, use_container_width=True)
+            else: 
+                st.success("✅ Tudo limpo no filtro atual.")
 
     with aba10:
         st.subheader("📋 Plano de Ação e Diretrizes")
@@ -555,53 +471,31 @@ def carregar_excel_nuvem_turbinado(url, aba):
         try: st.image("plano.jpg", use_container_width=True)
         except Exception: st.error("⚠️ Arquivo 'plano.jpg' não encontrado.")
             
-        # Exportar Aba 10
         st.write("---")
         resumo_10 = ["Gestao Operacional e Qualidade", "- Foco: 5 Filiais mais ofensoras", "- Data Referencia: 25/03/2026"]
         pdf_aba10 = gerar_pdf_dinamico("Plano de Acao Logistico", resumo_10, None)
         st.download_button("📄 Baixar Relatório: Plano (PDF)", data=pdf_aba10, file_name="Plano_Acao.pdf", mime="application/pdf", key="pdf_aba10")
 
- 
     with aba11:
         st.subheader("📈 Análise de Tendências Temporais")
         
-        # 1. Filtro para o usuário escolher qual planilha (base) ele quer ver
-        tipo_base = st.radio(
-            "Qual base de dados você quer analisar na linha do tempo?", 
-            ["Ambas (Geral)", "Somente Danos", "Somente Faltas"], 
-            horizontal=True
-        )
-        
-        # 2. Filtro para escolher se a visão é por Mês ou por Semana
-        tipo_visao = st.radio(
-            "Selecione a periodicidade:", 
-            ["Mensal", "Semanal"], 
-            horizontal=True
-        )
+        tipo_base = st.radio("Qual base de dados você quer analisar na linha do tempo?", ["Ambas (Geral)", "Somente Danos", "Somente Faltas"], horizontal=True)
+        tipo_visao = st.radio("Selecione a periodicidade:", ["Mensal", "Semanal"], horizontal=True)
         param_tempo = 'M' if tipo_visao == "Mensal" else 'W'
         
-        # 3. Direciona os dados corretos dependendo da escolha do usuário
-        if tipo_base == "Somente Danos":
-            df_plot = df_danos  
-        elif tipo_base == "Somente Faltas":
-            df_plot = df_faltas 
-        else:
-            df_plot = df_uni    
+        if tipo_base == "Somente Danos": df_plot = df_danos  
+        elif tipo_base == "Somente Faltas": df_plot = df_faltas 
+        else: df_plot = df_uni    
             
-        # 4. Gera o gráfico se a base não estiver vazia
         if not df_plot.empty:
             fig_tempo = plot_evolucao_temporal(df_plot, periodicidade=param_tempo)
-            if fig_tempo:
-                st.plotly_chart(fig_tempo, use_container_width=True)
-            else:
-                st.warning("Não foi possível gerar o gráfico de linha do tempo com as datas atuais.")
+            if fig_tempo: st.plotly_chart(fig_tempo, use_container_width=True)
+            else: st.warning("Não foi possível gerar o gráfico de linha do tempo com as datas atuais.")
         else:
             st.warning(f"Não há dados disponíveis para a seleção: {tipo_base}")
         
         st.divider()
-        
-  
-# O except fica totalmente colado no canto esquerdo, NO FINAL DE TUDO!
+
 except Exception as e:
     st.error(f"Erro no processamento: {e}")
     st.code(traceback.format_exc())

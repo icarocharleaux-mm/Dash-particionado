@@ -339,16 +339,16 @@ try:
         st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
     with aba7:
-      st.subheader("📍 Detalhamento de Ocorrências por Rota")
+        st.subheader("📍 Detalhamento de Ocorrências por Rota")
         
         # --- BUSCA INTELIGENTE DA COLUNA DE ROTA ---
-      coluna_rota_real = None
-      for col in df_uni.columns:
-            if col.lower() == 'rota': # Procura a palavra 'rota' independente de maiúscula/minúscula
+        coluna_rota_real = None
+        for col in df_uni.columns:
+            if col.lower() == 'rota':
                 coluna_rota_real = col
                 break
                 
-      if coluna_rota_real:
+        if coluna_rota_real:
             # 1. Agrupar os volumes de DANOS
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
@@ -397,7 +397,7 @@ try:
             pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
             st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
             
-    else:
+        else:
             st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
 
     with aba8:

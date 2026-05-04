@@ -342,7 +342,7 @@ try:
       st.subheader("📍 Detalhamento de Ocorrências por Rota")
         
         # --- BUSCA INTELIGENTE DA COLUNA DE ROTA ---
-        coluna_rota_real = None
+      coluna_rota_real = None
         for col in df_uni.columns:
             if col.lower() == 'rota': # Procura a palavra 'rota' independente de maiúscula/minúscula
                 coluna_rota_real = col

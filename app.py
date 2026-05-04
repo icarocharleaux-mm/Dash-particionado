@@ -314,7 +314,7 @@ try:
         st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
     with aba7:
-        st.subheader("📍 Detalhamento de Ocorrências por Rota")
+        st.subheader("📍 Detalhamento e Inteligência por Rota")
         
         coluna_rota_real = None
         for col in df_uni.columns:
@@ -323,6 +323,9 @@ try:
                 break
                 
         if coluna_rota_real:
+            # ==========================================
+            # 1. TABELA DE OFENSORES POR ROTA
+            # ==========================================
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
             else:
@@ -359,41 +362,28 @@ try:
             st.dataframe(df_exibicao, use_container_width=True)
 
             # ==========================================
-            # NOVA SESSÃO: INVESTIGAÇÃO TEMPORAL
+            # 2. INVESTIGAÇÃO TEMPORAL AVANÇADA
             # ==========================================
             st.write("---")
-            st.markdown("### 📈 Investigação Temporal Avançada")
+            st.markdown("### 📈 Investigação Temporal (Rotas)")
             
             lista_rotas = df_exibicao['Rota'].unique().tolist()
             
             if lista_rotas:
-                # Prepara a base unificada limpando o número da rota
                 df_uni_temp = df_uni.copy()
                 df_uni_temp['rota_padrao'] = df_uni_temp[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
-                # Lista de períodos disponíveis na base
                 periodos_disponiveis = []
                 if 'Periodo' in df_uni_temp.columns:
                     periodos_disponiveis = sorted(df_uni_temp['Periodo'].dropna().unique().tolist())
                 
-                # Layout das caixas de filtro
                 col_filtro_rota, col_filtro_periodo = st.columns(2)
                 
                 with col_filtro_rota:
-                    rotas_selecionadas = st.multiselect(
-                        "1️⃣ Selecione as rotas para análise:", 
-                        options=lista_rotas,
-                        default=[lista_rotas[0]] if lista_rotas else [] # Seleciona a 1ª por padrão
-                    )
-                
+                    rotas_selecionadas = st.multiselect("1️⃣ Selecione as rotas para análise:", options=lista_rotas, default=[lista_rotas[0]] if lista_rotas else [])
                 with col_filtro_periodo:
-                    periodos_selecionados = st.multiselect(
-                        "2️⃣ Filtre os períodos (Meses/Semanas):",
-                        options=periodos_disponiveis,
-                        default=periodos_disponiveis # Vem com todos selecionados por padrão
-                    )
+                    periodos_selecionados = st.multiselect("2️⃣ Filtre os períodos (Meses/Semanas):", options=periodos_disponiveis, default=periodos_disponiveis)
                 
-                # Aplica os filtros na base
                 if rotas_selecionadas and periodos_selecionados:
                     df_rota_hist = df_uni_temp[
                         (df_uni_temp['rota_padrao'].isin([str(r) for r in rotas_selecionadas])) & 
@@ -401,87 +391,131 @@ try:
                     ]
                     
                     if not df_rota_hist.empty:
-                        # 1. Agrupamento para o Gráfico (Soma todas as rotas selecionadas)
                         df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
                         df_hist_grp = df_hist_grp.sort_values(by='Periodo')
                         
-                        # 2. Agrupamento Totalizador para o cálculo de variação
                         df_total = df_rota_hist.groupby('Periodo')['Quantidade'].sum().reset_index()
                         df_total = df_total.sort_values(by='Periodo')
                         
-                        # Indicadores de performance
                         if len(df_total) > 1:
                             total_inicio = df_total['Quantidade'].iloc[0]
                             total_fim = df_total['Quantidade'].iloc[-1]
-                            
                             variacao = ((total_fim - total_inicio) / max(total_inicio, 1)) * 100
                             
-                            if variacao > 20:
-                                st.error(f"🚨 As rotas selecionadas apresentaram piora conjunta de {variacao:.1f}% no período.")
-                            elif variacao < -20:
-                                st.success(f"✅ As rotas selecionadas apresentaram melhoria conjunta de {abs(variacao):.1f}% no período.")
-                            else:
-                                st.warning("⚠️ As rotas selecionadas apresentam estabilidade operacional.")
+                            if variacao > 20: st.error(f"🚨 As rotas selecionadas apresentaram piora conjunta de {variacao:.1f}% no período.")
+                            elif variacao < -20: st.success(f"✅ As rotas selecionadas apresentaram melhoria conjunta de {abs(variacao):.1f}% no período.")
+                            else: st.warning("⚠️ As rotas selecionadas apresentam estabilidade operacional.")
                                 
                             df_total['Variacao_%'] = (df_total['Quantidade'].pct_change() * 100).round(1).fillna(0)
                         else:
                             st.info("📊 Seleção possui ocorrências em apenas um período. Histórico insuficiente para variação.")
 
-                        # Gráfico de Barras Evolutivo
                         titulo_grafico = "Evolução Agregada" if len(rotas_selecionadas) > 1 else f"Evolução - Rota {rotas_selecionadas[0]}"
                         fig_hist = px.bar(
-                            df_hist_grp, 
-                            x='Periodo', 
-                            y='Quantidade', 
-                            color='Tipo_Ocorrencia',
-                            barmode='group',
-                            color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'},
-                            text_auto='.0f',
-                            title=titulo_grafico
+                            df_hist_grp, x='Periodo', y='Quantidade', color='Tipo_Ocorrencia', barmode='group',
+                            color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'}, text_auto='.0f', title=titulo_grafico
                         )
                         fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
                         st.plotly_chart(fig_hist, use_container_width=True)
                         
-                        # ---------------------------------------------------------
-                        # 3. GRÁFICO: MAPA DE CALOR (PLOTLY)
-                        # ---------------------------------------------------------
-                        st.markdown("#### 📅 Visão Matricial (Comparativo entre Rotas)")
-                        
-                        # Gera a tabela dinâmica
-                        pivot_heat = df_rota_hist.pivot_table(
-                            index='rota_padrao',
-                            columns='Periodo',
-                            values='Quantidade',
-                            aggfunc='sum',
-                            fill_value=0
-                        )
-                        
-                        # Só desenha o mapa se tiver dados na pivot_table
-                        if not pivot_heat.empty:
-                            fig_heat = px.imshow(
-                                pivot_heat,
-                                text_auto=True,          
-                                aspect="auto",           
-                                color_continuous_scale="Reds", 
-                                title="Densidade de Ocorrências por Rota"
-                            )
-                            fig_heat.update_layout(xaxis_title="", yaxis_title="Rotas Selecionadas")
-                            st.plotly_chart(fig_heat, use_container_width=True)
-                        # ---------------------------------------------------------
-
-                        # Detalhamento da variação
                         if len(df_total) > 1:
                             with st.expander("Ver detalhamento do crescimento agregado período a período"):
                                 st.dataframe(df_total.style.format({'Variacao_%': '{:.1f}%'}), use_container_width=True)
-
                     else:
                         st.info("Nenhuma ocorrência encontrada para a combinação de rotas e períodos selecionados.")
                 else:
                     st.warning("⚠️ Selecione pelo menos uma rota e um período para visualizar a análise.")
 
             # ==========================================
-            # EXPORTAÇÃO
+            # 3. INTELIGÊNCIA GEOGRÁFICA REGIONAL
             # ==========================================
+            st.write("---")
+            st.markdown("### 🌍 Inteligência Geográfica de Ocorrências")
+            
+            df_geo = df_uni.copy()
+            
+            if not df_mapa_agg.empty:
+                df_geo['rota_padrao'] = df_geo[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                df_mapa_agg_clean = df_mapa_agg.copy()
+                df_mapa_agg_clean['Rota'] = df_mapa_agg_clean['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                
+                df_geo = pd.merge(df_geo, df_mapa_agg_clean[['Rota', 'Cidade', 'Bairro']], left_on='rota_padrao', right_on='Rota', how='left')
+                df_geo['Cidade'] = df_geo['Cidade'].fillna('Não Identificada')
+                df_geo['Bairro'] = df_geo['Bairro'].fillna('Não Identificado')
+                df_geo = df_geo[df_geo['Quantidade'] > 0]
+
+                # RANKINGS: Cidades e Bairros
+                col_cid, col_bai = st.columns(2)
+                with col_cid:
+                    st.markdown("#### 🏆 Top 10 Cidades Críticas")
+                    top_cidades = df_geo.groupby('Cidade')['Quantidade'].sum().nlargest(10).reset_index()
+                    fig_cid = px.bar(top_cidades, x='Quantidade', y='Cidade', orientation='h', color='Quantidade', color_continuous_scale='Oranges', text_auto='.0f')
+                    fig_cid.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                    st.plotly_chart(fig_cid, use_container_width=True)
+
+                with col_bai:
+                    st.markdown("#### 🚨 Top 10 Bairros Críticos")
+                    df_bairros = df_geo[df_geo['Bairro'] != 'Não Identificado']
+                    top_bairros = df_bairros.groupby('Bairro')['Quantidade'].sum().nlargest(10).reset_index()
+                    fig_bai = px.bar(top_bairros, x='Quantidade', y='Bairro', orientation='h', color='Quantidade', color_continuous_scale='Reds', text_auto='.0f')
+                    fig_bai.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                    st.plotly_chart(fig_bai, use_container_width=True)
+
+                st.write("---")
+
+                # SUNBURST: Raio-X
+                st.markdown("#### 🎯 Raio-X Geográfico (Sunburst)")
+                st.markdown("*Clique no centro para expandir as cidades, bairros e descobrir as rotas ofensoras de cada região.*")
+                
+                df_sun = df_geo.groupby(['Cidade', 'Bairro', 'rota_padrao'])['Quantidade'].sum().reset_index()
+                df_sun = df_sun[df_sun['Quantidade'] > 0]
+                
+                fig_sun = px.sunburst(
+                    df_sun, path=['Cidade', 'Bairro', 'rota_padrao'], values='Quantidade',
+                    color='Quantidade', color_continuous_scale='Inferno'
+                )
+                fig_sun.update_layout(margin=dict(t=0, l=0, r=0, b=0), height=500)
+                st.plotly_chart(fig_sun, use_container_width=True)
+
+                st.write("---")
+
+                # HEATMAP E EVOLUÇÃO (CIDADES)
+                if 'Periodo' in df_geo.columns:
+                    col_evol, col_heat = st.columns(2)
+                    
+                    with col_evol:
+                        st.markdown("#### 📅 Evolução (Top 5 Cidades)")
+                        top_5_cids = top_cidades.head(5)['Cidade'].tolist()
+                        df_evol_reg = df_geo[df_geo['Cidade'].isin(top_5_cids)]
+                        
+                        df_evol_grp = df_evol_reg.groupby(['Periodo', 'Cidade'])['Quantidade'].sum().reset_index()
+                        df_evol_grp = df_evol_grp.sort_values(by='Periodo')
+                        
+                        fig_evol = px.line(df_evol_grp, x='Periodo', y='Quantidade', color='Cidade', markers=True)
+                        fig_evol.update_layout(legend=dict(orientation="h", ybottom=-0.2, yanchor="top", xanchor="center", x=0.5))
+                        st.plotly_chart(fig_evol, use_container_width=True)
+
+                    with col_heat:
+                        st.markdown("#### 🔥 Mapa de Calor Regional")
+                        pivot_cid = df_geo.pivot_table(index='Cidade', columns='Periodo', values='Quantidade', aggfunc='sum', fill_value=0)
+                        
+                        if not pivot_cid.empty:
+                            fig_heat_cid = px.imshow(pivot_cid, text_auto=True, aspect="auto", color_continuous_scale="Reds")
+                            st.plotly_chart(fig_heat_cid, use_container_width=True)
+
+            else:
+                st.warning("⚠️ Para visualizar a inteligência geográfica, as informações do arquivo 'relatorionotas.csv' precisam estar carregadas corretamente.")
+
+            # ==========================================
+            # 4. EXPORTAÇÃO DE RELATÓRIO
+            # ==========================================
+            st.write("---")
+            resumo_7 = ["Relatorio executivo contendo o detalhamento do volume de itens perdidos e danificados por rota, consolidado com inteligencia de mapa de cidades e bairros ofensores."]
+            pdf_aba7 = gerar_pdf_dinamico("Dossie Geografico e Rotas", resumo_7, df_exibicao)
+            st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas_Geo.pdf", mime="application/pdf", key="pdf_aba7")
+            
+        else:
+            st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download=1"

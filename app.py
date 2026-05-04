@@ -323,6 +323,7 @@ try:
                 break
                 
         if coluna_rota_real:
+            # --- TABELA DE ROTAS (Como já estava funcionando) ---
             if not df_danos.empty and coluna_rota_real in df_danos.columns:
                 df_danos_rota = df_danos.groupby(coluna_rota_real)['Quantidade'].sum().reset_index(name='Qtd_Danos')
             else:
@@ -358,6 +359,52 @@ try:
             
             st.dataframe(df_exibicao, use_container_width=True)
 
+            # ==========================================
+            # NOVA SESSÃO: INVESTIGAÇÃO TEMPORAL
+            # ==========================================
+            st.write("---")
+            st.markdown("### 📈 Investigação Temporal da Rota")
+            
+            # Puxa a lista de rotas direto da tabela final para não mostrar rotas vazias
+            lista_rotas = df_exibicao['Rota'].unique().tolist()
+            
+            if lista_rotas:
+                # Cria colunas para organizar o layout visualmente
+                col_filtro, col_vazia = st.columns([1, 2])
+                with col_filtro:
+                    rota_selecionada = st.selectbox("Selecione a rota que deseja analisar:", options=lista_rotas)
+                
+                # Prepara a base unificada limpando o número da rota (mesma regra do PROCV)
+                df_uni_temp = df_uni.copy()
+                df_uni_temp['rota_padrao'] = df_uni_temp[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                
+                # Filtra apenas a rota selecionada
+                df_rota_hist = df_uni_temp[df_uni_temp['rota_padrao'] == str(rota_selecionada)]
+                
+                if not df_rota_hist.empty and 'Periodo' in df_rota_hist.columns:
+                    # Agrupa os dados por Período e Tipo (Dano/Falta)
+                    df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
+                    df_hist_grp = df_hist_grp.sort_values(by='Periodo')
+                    
+                    # Cria um gráfico de barras lado a lado
+                    fig_hist = px.bar(
+                        df_hist_grp, 
+                        x='Periodo', 
+                        y='Quantidade', 
+                        color='Tipo_Ocorrencia',
+                        barmode='group',
+                        color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'}, # Azul pra dano, vermelho pra falta
+                        text_auto='.0f',
+                        title=f"Evolução de Faltas e Danos - Rota {rota_selecionada}"
+                    )
+                    fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
+                    st.plotly_chart(fig_hist, use_container_width=True)
+                else:
+                    st.info("Não há histórico de datas (coluna 'Periodo') para desenhar a linha do tempo desta rota.")
+
+            # ==========================================
+            # EXPORTAÇÃO
+            # ==========================================
             st.write("---")
             resumo_7 = ["Tabela consolidada do volume de itens perdidos e danificados por rota, cidade e bairro."]
             pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)

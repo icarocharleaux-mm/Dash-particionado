@@ -362,110 +362,126 @@ try:
             # NOVA SESSÃO: INVESTIGAÇÃO TEMPORAL
             # ==========================================
             st.write("---")
-            st.markdown("### 📈 Investigação Temporal da Rota")
+            st.markdown("### 📈 Investigação Temporal Avançada")
             
             lista_rotas = df_exibicao['Rota'].unique().tolist()
             
             if lista_rotas:
-                col_filtro, col_vazia = st.columns([1, 2])
-                with col_filtro:
-                    rota_selecionada = st.selectbox("Selecione a rota que deseja analisar:", options=lista_rotas)
-                
+                # Prepara a base unificada limpando o número da rota
                 df_uni_temp = df_uni.copy()
                 df_uni_temp['rota_padrao'] = df_uni_temp[coluna_rota_real].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 
-                df_rota_hist = df_uni_temp[df_uni_temp['rota_padrao'] == str(rota_selecionada)]
+                # Lista de períodos disponíveis na base
+                periodos_disponiveis = []
+                if 'Periodo' in df_uni_temp.columns:
+                    periodos_disponiveis = sorted(df_uni_temp['Periodo'].dropna().unique().tolist())
                 
-                if not df_rota_hist.empty and 'Periodo' in df_rota_hist.columns:
+                # Layout das caixas de filtro
+                col_filtro_rota, col_filtro_periodo = st.columns(2)
+                
+                with col_filtro_rota:
+                    rotas_selecionadas = st.multiselect(
+                        "1️⃣ Selecione as rotas para análise:", 
+                        options=lista_rotas,
+                        default=[lista_rotas[0]] if lista_rotas else [] # Seleciona a 1ª por padrão
+                    )
+                
+                with col_filtro_periodo:
+                    periodos_selecionados = st.multiselect(
+                        "2️⃣ Filtre os períodos (Meses/Semanas):",
+                        options=periodos_disponiveis,
+                        default=periodos_disponiveis # Vem com todos selecionados por padrão
+                    )
+                
+                # Aplica os filtros na base
+                if rotas_selecionadas and periodos_selecionados:
+                    df_rota_hist = df_uni_temp[
+                        (df_uni_temp['rota_padrao'].isin([str(r) for r in rotas_selecionadas])) & 
+                        (df_uni_temp['Periodo'].isin(periodos_selecionados))
+                    ]
                     
-                    # 1. Agrupamento para o Gráfico (Dano vs Falta)
-                    df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
-                    df_hist_grp = df_hist_grp.sort_values(by='Periodo')
-                    
-                    # 2. Agrupamento Totalizador para o cálculo de variação
-                    df_total = df_rota_hist.groupby('Periodo')['Quantidade'].sum().reset_index()
-                    df_total = df_total.sort_values(by='Periodo')
-                    
-                    # Indicadores de performance
-                    if len(df_total) > 1:
-                        total_inicio = df_total['Quantidade'].iloc[0]
-                        total_fim = df_total['Quantidade'].iloc[-1]
+                    if not df_rota_hist.empty:
+                        # 1. Agrupamento para o Gráfico (Soma todas as rotas selecionadas)
+                        df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
+                        df_hist_grp = df_hist_grp.sort_values(by='Periodo')
                         
-                        variacao = ((total_fim - total_inicio) / max(total_inicio, 1)) * 100
+                        # 2. Agrupamento Totalizador para o cálculo de variação
+                        df_total = df_rota_hist.groupby('Periodo')['Quantidade'].sum().reset_index()
+                        df_total = df_total.sort_values(by='Periodo')
                         
-                        if variacao > 20:
-                            st.error(f"🚨 A rota apresentou piora de {variacao:.1f}% no período analisado.")
-                        elif variacao < -20:
-                            st.success(f"✅ A rota apresentou melhoria de {abs(variacao):.1f}% no período analisado.")
-                        else:
-                            st.warning("⚠️ A rota apresenta estabilidade operacional.")
+                        # Indicadores de performance
+                        if len(df_total) > 1:
+                            total_inicio = df_total['Quantidade'].iloc[0]
+                            total_fim = df_total['Quantidade'].iloc[-1]
                             
-                        df_total['Variacao_%'] = (df_total['Quantidade'].pct_change() * 100).round(1).fillna(0)
+                            variacao = ((total_fim - total_inicio) / max(total_inicio, 1)) * 100
+                            
+                            if variacao > 20:
+                                st.error(f"🚨 As rotas selecionadas apresentaram piora conjunta de {variacao:.1f}% no período.")
+                            elif variacao < -20:
+                                st.success(f"✅ As rotas selecionadas apresentaram melhoria conjunta de {abs(variacao):.1f}% no período.")
+                            else:
+                                st.warning("⚠️ As rotas selecionadas apresentam estabilidade operacional.")
+                                
+                            df_total['Variacao_%'] = (df_total['Quantidade'].pct_change() * 100).round(1).fillna(0)
+                        else:
+                            st.info("📊 Seleção possui ocorrências em apenas um período. Histórico insuficiente para variação.")
+
+                        # Gráfico de Barras Evolutivo
+                        titulo_grafico = "Evolução Agregada" if len(rotas_selecionadas) > 1 else f"Evolução - Rota {rotas_selecionadas[0]}"
+                        fig_hist = px.bar(
+                            df_hist_grp, 
+                            x='Periodo', 
+                            y='Quantidade', 
+                            color='Tipo_Ocorrencia',
+                            barmode='group',
+                            color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'},
+                            text_auto='.0f',
+                            title=titulo_grafico
+                        )
+                        fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
+                        st.plotly_chart(fig_hist, use_container_width=True)
+                        
+                        # ---------------------------------------------------------
+                        # 3. GRÁFICO: MAPA DE CALOR (PLOTLY)
+                        # ---------------------------------------------------------
+                        st.markdown("#### 📅 Visão Matricial (Comparativo entre Rotas)")
+                        
+                        # Gera a tabela dinâmica
+                        pivot_heat = df_rota_hist.pivot_table(
+                            index='rota_padrao',
+                            columns='Periodo',
+                            values='Quantidade',
+                            aggfunc='sum',
+                            fill_value=0
+                        )
+                        
+                        # Só desenha o mapa se tiver dados na pivot_table
+                        if not pivot_heat.empty:
+                            fig_heat = px.imshow(
+                                pivot_heat,
+                                text_auto=True,          
+                                aspect="auto",           
+                                color_continuous_scale="Reds", 
+                                title="Densidade de Ocorrências por Rota"
+                            )
+                            fig_heat.update_layout(xaxis_title="", yaxis_title="Rotas Selecionadas")
+                            st.plotly_chart(fig_heat, use_container_width=True)
+                        # ---------------------------------------------------------
+
+                        # Detalhamento da variação
+                        if len(df_total) > 1:
+                            with st.expander("Ver detalhamento do crescimento agregado período a período"):
+                                st.dataframe(df_total.style.format({'Variacao_%': '{:.1f}%'}), use_container_width=True)
+
                     else:
-                        st.info("📊 A rota possui ocorrências em apenas um período. Histórico insuficiente para calcular variação.")
-
-                    # Gráfico de Barras Evolutivo
-                    fig_hist = px.bar(
-                        df_hist_grp, 
-                        x='Periodo', 
-                        y='Quantidade', 
-                        color='Tipo_Ocorrencia',
-                        barmode='group',
-                        color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'},
-                        text_auto='.0f',
-                        title=f"Evolução de Faltas e Danos - Rota {rota_selecionada}"
-                    )
-                    fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
-                    st.plotly_chart(fig_hist, use_container_width=True)
-                    
-                    # ---------------------------------------------------------
-                    # 3. GRÁFICO: MAPA DE CALOR (PLOTLY)
-                    # ---------------------------------------------------------
-                    st.markdown("#### 📅 Visão Matricial (Mapa de Calor)")
-                    
-                    # Gera a tabela dinâmica
-                    pivot_heat = df_rota_hist.pivot_table(
-                        index='rota_padrao',
-                        columns='Periodo',
-                        values='Quantidade',
-                        aggfunc='sum',
-                        fill_value=0
-                    )
-                    
-                    # Renderiza o gráfico do mapa de calor interativo
-                    fig_heat = px.imshow(
-                        pivot_heat,
-                        text_auto=True,          # Mostra os números dentro dos quadrados
-                        aspect="auto",           # Ajusta a largura para preencher a tela
-                        color_continuous_scale="Reds", # Cor vermelha para dar o tom de "alerta" logístico
-                        title="Densidade de Ocorrências"
-                    )
-                    
-                    # Remove labels desnecessários dos eixos para um visual mais limpo
-                    fig_heat.update_layout(xaxis_title="", yaxis_title="Rota Selecionada")
-                    
-                    st.plotly_chart(fig_heat, use_container_width=True)
-                    # ---------------------------------------------------------
-
-                    # Detalhamento da variação
-                    if len(df_total) > 1:
-                        with st.expander("Ver detalhamento do crescimento período a período"):
-                            st.dataframe(df_total.style.format({'Variacao_%': '{:.1f}%'}), use_container_width=True)
-
+                        st.info("Nenhuma ocorrência encontrada para a combinação de rotas e períodos selecionados.")
                 else:
-                    st.info("Não há histórico de datas (coluna 'Periodo') para desenhar a linha do tempo desta rota.")
+                    st.warning("⚠️ Selecione pelo menos uma rota e um período para visualizar a análise.")
 
             # ==========================================
             # EXPORTAÇÃO
             # ==========================================
-            st.write("---")
-            resumo_7 = ["Tabela consolidada do volume de itens perdidos e danificados por rota, cidade e bairro."]
-            pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
-            st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
-            
-        else:
-            st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
-
     with aba8:
         st.subheader("📝 Controle de Tratativas")
         link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download=1"

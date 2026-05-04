@@ -382,18 +382,17 @@ try:
                     df_hist_grp = df_rota_hist.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
                     df_hist_grp = df_hist_grp.sort_values(by='Periodo')
                     
-                    # 2. Agrupamento Totalizador para o seu cálculo de variação
+                    # 2. Agrupamento Totalizador para o cálculo de variação
                     df_total = df_rota_hist.groupby('Periodo')['Quantidade'].sum().reset_index()
                     df_total = df_total.sort_values(by='Periodo')
                     
-                    # Verifica se temos pelo menos dois períodos para poder comparar (Evita erro no iloc e pct_change)
+                    # Indicadores de performance
                     if len(df_total) > 1:
                         total_inicio = df_total['Quantidade'].iloc[0]
                         total_fim = df_total['Quantidade'].iloc[-1]
                         
                         variacao = ((total_fim - total_inicio) / max(total_inicio, 1)) * 100
                         
-                        # Seu indicador visual!
                         if variacao > 20:
                             st.error(f"🚨 A rota apresentou piora de {variacao:.1f}% no período analisado.")
                         elif variacao < -20:
@@ -401,13 +400,11 @@ try:
                         else:
                             st.warning("⚠️ A rota apresenta estabilidade operacional.")
                             
-                        # Aplicação do seu pct_change para detalhamento na tabela
                         df_total['Variacao_%'] = (df_total['Quantidade'].pct_change() * 100).round(1).fillna(0)
-                        
                     else:
                         st.info("📊 A rota possui ocorrências em apenas um período. Histórico insuficiente para calcular variação.")
 
-                    # Gráfico
+                    # Gráfico de Barras Evolutivo
                     fig_hist = px.bar(
                         df_hist_grp, 
                         x='Periodo', 
@@ -421,7 +418,36 @@ try:
                     fig_hist.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens", legend_title="Tipo")
                     st.plotly_chart(fig_hist, use_container_width=True)
                     
-                    # Exibe a tabela com o detalhe do pct_change se houver histórico
+                    # ---------------------------------------------------------
+                    # 3. GRÁFICO: MAPA DE CALOR (PLOTLY)
+                    # ---------------------------------------------------------
+                    st.markdown("#### 📅 Visão Matricial (Mapa de Calor)")
+                    
+                    # Gera a tabela dinâmica
+                    pivot_heat = df_rota_hist.pivot_table(
+                        index='rota_padrao',
+                        columns='Periodo',
+                        values='Quantidade',
+                        aggfunc='sum',
+                        fill_value=0
+                    )
+                    
+                    # Renderiza o gráfico do mapa de calor interativo
+                    fig_heat = px.imshow(
+                        pivot_heat,
+                        text_auto=True,          # Mostra os números dentro dos quadrados
+                        aspect="auto",           # Ajusta a largura para preencher a tela
+                        color_continuous_scale="Reds", # Cor vermelha para dar o tom de "alerta" logístico
+                        title="Densidade de Ocorrências"
+                    )
+                    
+                    # Remove labels desnecessários dos eixos para um visual mais limpo
+                    fig_heat.update_layout(xaxis_title="", yaxis_title="Rota Selecionada")
+                    
+                    st.plotly_chart(fig_heat, use_container_width=True)
+                    # ---------------------------------------------------------
+
+                    # Detalhamento da variação
                     if len(df_total) > 1:
                         with st.expander("Ver detalhamento do crescimento período a período"):
                             st.dataframe(df_total.style.format({'Variacao_%': '{:.1f}%'}), use_container_width=True)

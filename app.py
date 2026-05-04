@@ -397,7 +397,7 @@ try:
             pdf_aba7 = gerar_pdf_dinamico("Rotas Logísticas Ofensoras", resumo_7, df_exibicao)
             st.download_button("📄 Baixar Relatório: Rotas (PDF)", data=pdf_aba7, file_name="Relatorio_Rotas.pdf", mime="application/pdf", key="pdf_aba7")
             
-        else:
+    else:
             st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
 
     with aba8:

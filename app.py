@@ -463,9 +463,9 @@ try:
         
         # Filtro 3: Motoristas de Risco
         mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
-        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 5]['Motorista']
+        lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 20]['Motorista']
         f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
-        f_mot['Motivo'] = 'Motorista Risco: +5 Clientes Afetados'
+        f_mot['Motivo'] = 'Motorista Risco: +20 Clientes Afetados'
         
         # Consolidação: Agora juntamos o f_vol, f_rep, f_mot E o f_isento
         alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])

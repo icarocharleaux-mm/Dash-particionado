@@ -521,7 +521,7 @@ try:
             st.error("Aviso: A coluna de rotas não foi encontrada na base de dados principal.")
     with aba8:
         st.subheader("📝 Controle de Tratativas")
-        link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAPqiibONDjQ7z9cJz1CjF5AV3YLCf5jOoNXAqQ76HAyW0?download=1"
+        link_consolidado = "https://diaslog-my.sharepoint.com/:x:/g/personal/icaro_nascimento_mmdeliverytransportes_com_br/IQAj93IdOFz8R7FzGtY6CH7rAfzodfY-wPpnPjciYx6gHis?download=1"
 
         st.markdown("### 📦 Tratativas - Danos")
         df_exibicao_danos = None

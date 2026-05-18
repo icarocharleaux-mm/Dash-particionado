@@ -41,20 +41,22 @@ authenticator = stauth.Authenticate(
 )
 
 # Renderiza o formulário de login no centro da tela
-name, authentication_status, username = authenticator.login(location='main')
+try:
+    authenticator.login(location='main')
+except Exception as e:
+    st.error(e)
 
 # --- CONTROLE DE ACESSO ---
-if authentication_status == False:
+if st.session_state.get("authentication_status") == False:
     st.error('Usuário ou senha incorretos.')
-elif authentication_status == None:
+elif st.session_state.get("authentication_status") is None:
     st.warning('Por favor, insira seu usuário e senha no formulário acima.')
-elif authentication_status:
+elif st.session_state.get("authentication_status"):
     # --- USUÁRIO AUTENTICADO COM SUCESSO ---
     
     # Exibe botão de saída e saudação na barra lateral
     authenticator.logout('Sair do Sistema', 'sidebar')
-    st.sidebar.markdown(f"👤 **Bem-vindo(a), {name}!**")
-    st.sidebar.divider()
+    st.sidebar.markdown(f"👤 **Bem-vindo(a), {st.session_state['name']}!**")
 
     # --- FUNÇÕES GLOBAIS ---
     def organizar_tabela(df_entrada):

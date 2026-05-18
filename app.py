@@ -54,10 +54,41 @@ if st.session_state.get("authentication_status") == False:
 elif st.session_state.get("authentication_status") is None:
     st.warning('Por favor, insira seu usuário e senha no formulário acima.')
 elif st.session_state.get("authentication_status"):
-    # --- USUÁRIO AUTENTICADO COM SUCESSO ---
+   # --- USUÁRIO AUTENTICADO COM SUCESSO ---
     
+    # LÓGICA DO CONTADOR DE ACESSOS
+    # Verifica se o acesso já foi contado nesta sessão (evita contar duplo ao clicar em abas)
+    if 'acesso_contabilizado' not in st.session_state:
+        arquivo_cont = 'acessos.json'
+        
+        # 1. Lê o histórico de acessos (se o arquivo existir)
+        if os.path.exists(arquivo_cont):
+            with open(arquivo_cont, 'r', encoding='utf-8') as f:
+                contadores = json.load(f)
+        else:
+            contadores = {}
+            
+        # 2. Pega o "username" de quem acabou de logar (ex: qualidadedias ou natura)
+        usuario = st.session_state['username']
+        
+        # 3. Soma +1 no acesso daquele usuário
+        contadores[usuario] = contadores.get(usuario, 0) + 1
+        
+        # 4. Salva o número atualizado de volta no arquivo
+        with open(arquivo_cont, 'w', encoding='utf-8') as f:
+            json.dump(contadores, f)
+            
+        # 5. Salva na memória do painel para exibir na tela e avisa que já contou
+        st.session_state['qtd_acessos'] = contadores[usuario]
+        st.session_state['acesso_contabilizado'] = True
+
     # Exibe botão de saída e saudação na barra lateral
     authenticator.logout('Sair do Sistema', 'sidebar')
+    st.sidebar.markdown(f"👤 **Bem-vindo(a), {st.session_state['name']}!**")
+    
+    # Exibe o contador na barra lateral
+    st.sidebar.info(f"📊 Acessos deste login: {st.session_state['qtd_acessos']}")
+    st.sidebar.divider()
     st.sidebar.markdown(f"👤 **Bem-vindo(a), {st.session_state['name']}!**")
 
     # --- FUNÇÕES GLOBAIS ---

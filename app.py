@@ -7,6 +7,8 @@ import requests
 from fpdf import FPDF
 from io import BytesIO
 import streamlit.components.v1 as components
+import json
+import os
 
 # --- IMPORTANDO AS BIBLIOTECAS DE AUTENTICAÇÃO ---
 import streamlit_authenticator as stauth

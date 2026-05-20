@@ -42,7 +42,6 @@ def plot_heatmap_recorrencia(df, coluna_alvo):
         if df_valido.empty:
             return None, pd.DataFrame()
 
-        # Usamos values='Quantidade' e aggfunc='sum' para somar os itens perdidos/danificados
         pivot = df_valido.pivot_table(
             index=coluna_alvo, 
             columns='Periodo', 
@@ -54,14 +53,20 @@ def plot_heatmap_recorrencia(df, coluna_alvo):
         if pivot.empty:
             return None, pd.DataFrame()
             
+        # --- TRAVA DE ORDEM CRONOLÓGICA DOS MESES ---
+        meses_ref = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        colunas_existentes = [m for m in meses_ref if m in pivot.columns]
+        pivot = pivot[colunas_existentes]
+        # --------------------------------------------
+
         # Ordena o gráfico para os piores ficarem no topo visualmente
         pivot['Total'] = pivot.sum(axis=1)
         pivot = pivot.sort_values(by='Total', ascending=True).drop(columns=['Total'])
         
-        # Gera o mapa de calor com a escala de cores focada em volume
+        # Gera o mapa de calor
         fig = px.imshow(
             pivot, 
-            text_auto='.0f', # Remove casas decimais soltas e exibe números inteiros
+            text_auto='.0f', 
             aspect="auto", 
             color_continuous_scale="Reds",
             labels=dict(x="Período", y=coluna_alvo, color="Volume de Itens")
@@ -73,7 +78,6 @@ def plot_heatmap_recorrencia(df, coluna_alvo):
             margin=dict(l=0, r=0, t=30, b=0)
         )
         
-        # Retorna o gráfico e a tabela base para o app.py
         return fig, pivot.reset_index()
 
     except Exception as e:

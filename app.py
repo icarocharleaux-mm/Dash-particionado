@@ -363,15 +363,58 @@ elif st.session_state.get("authentication_status"):
             pdf_aba5 = gerar_pdf_dinamico("Recorrencia - Motoristas", resumo_5, df_recor_m)
             st.download_button("📄 Baixar Relatório: Recor. Motorista (PDF)", data=pdf_aba5, file_name="Recorrencia_Motoristas.pdf", mime="application/pdf", key="pdf_aba5")
 
-        with aba6:
+with aba6:
             st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
-            fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente')
-            if fig_heat_c: st.plotly_chart(fig_heat_c, use_container_width=True)
-            else: st.info("Nenhum cliente válido para análise na seleção atual.")
             
+            # O gráfico já recebe df_uni (Danos + Faltas combinados)
+            fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente')
+            
+            if fig_heat_c: 
+                st.plotly_chart(fig_heat_c, use_container_width=True)
+                
+                # --- NOVA SEÇÃO: DETALHAMENTO VISUAL DE DANOS VS FALTAS ---
+                st.markdown("**📋 Visão Consolidada de Impacto por Cliente (Danos x Faltas):**")
+                
+                if not df_uni.empty:
+                    # Criamos uma tabela dinâmica abrindo o volume de Danos e Faltas por Cliente
+                    df_resumo_cli = df_uni.pivot_table(
+                        index='Cliente',
+                        columns='Tipo_Ocorrencia',
+                        values='Quantidade',
+                        aggfunc='sum',
+                        fill_value=0
+                    ).reset_index()
+                    
+                    # Vacina para garantir que as colunas existam mesmo se o filtro ocultar alguma
+                    if 'Dano' not in df_resumo_cli.columns: df_resumo_cli['Dano'] = 0
+                    if 'Falta' not in df_resumo_cli.columns: df_resumo_cli['Falta'] = 0
+                    
+                    # Calcula o volume total combinado
+                    df_resumo_cli['Total de Itens'] = df_resumo_cli['Dano'] + df_resumo_cli['Falta']
+                    
+                    # Ordena do cliente mais crítico para o menos crítico
+                    df_resumo_cli = df_resumo_cli.sort_values(by='Total de Itens', ascending=False).reset_index(drop=True)
+                    
+                    # Renomeia as colunas para exibição amigável na tela
+                    df_resumo_cli = df_resumo_cli.rename(columns={
+                        'Dano': '📦 Itens Danificados', 
+                        'Falta': '📉 Itens Faltantes'
+                    })
+                    
+                    # Renderiza a tabela para o usuário
+                    st.dataframe(df_resumo_cli, use_container_width=True)
+                else:
+                    df_resumo_cli = df_recor_c
+                    st.info("Sem dados detalhados para os filtros selecionados.")
+            else: 
+                st.info("Nenhum cliente válido para análise na seleção atual.")
+                df_resumo_cli = None
+                
             st.write("---")
-            resumo_6 = ["Acompanhamento dos Clientes com maior volume de ocorrencias reincidentes."]
-            pdf_aba6 = gerar_pdf_dinamico("Recorrencia - Clientes", resumo_6, df_recor_c if fig_heat_c else None)
+            resumo_6 = ["Acompanhamento dos Clientes com maior volume de ocorrencias reincidentes, consolidando Danos e Faltas."]
+            
+            # Atualizado para exportar a nova tabela detalhada também no PDF!
+            pdf_aba6 = gerar_pdf_dinamico("Recorrencia - Clientes", resumo_6, df_resumo_cli if fig_heat_c else None)
             st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
         with aba7:

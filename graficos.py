@@ -112,12 +112,10 @@ def plot_mapa_rotas(df_uni, df_mapa_agg, df_coord_agg):
     return fig, tabela_final[['Rota', 'Setor', 'Bairro', 'Total_Geral']].sort_values('Total_Geral', ascending=False)
 
 def plot_evolucao_temporal(df, periodicidade='M'):
-
     if df.empty:
         return None
 
     df_temp = df.copy()
-
     col_data = 'Data_Filtro'
 
     df_temp[col_data] = pd.to_datetime(df_temp[col_data], errors='coerce')
@@ -135,7 +133,6 @@ def plot_evolucao_temporal(df, periodicidade='M'):
         
     df_agrupado = df_temp.groupby(['Linha_Tempo', 'Filial'])['Quantidade'].sum().reset_index()
     
-    # Se, por acaso, a tabela agrupada ficar vazia, não gera o gráfico
     if df_agrupado.empty:
         return None
         
@@ -147,10 +144,10 @@ def plot_evolucao_temporal(df, periodicidade='M'):
     fig.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens (Qtd)", hovermode="x unified", legend_title="Filial")
     return fig
     
-    def plot_comparativo_temporal_tipo(df):
-        """Gera um gráfico de barras comparando Danos x Faltas mês a mês."""
-        if df.empty or 'Periodo' not in df.columns:
-            return None
+def plot_comparativo_temporal_tipo(df):
+    """Gera um gráfico de barras comparando Danos x Faltas mês a mês."""
+    if df.empty or 'Periodo' not in df.columns:
+        return None
         
     # Soma a quantidade de itens agrupando pelo Mês e pelo Tipo (Dano/Falta)
     df_grp = df.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
@@ -180,5 +177,3 @@ def plot_evolucao_temporal(df, periodicidade='M'):
     )
     
     return fig
-
-

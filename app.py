@@ -362,8 +362,8 @@ elif st.session_state.get("authentication_status"):
                     Total_Itens=('Quantidade', 'sum')    # Quantos itens ele perdeu/danificou no total?
                 ).reset_index()
                 
-                # 3. Ordena os piores: Primeiro quem reincide em mais meses, depois quem tem mais volume
-                resumo_recorrencia_m = resumo_recorrencia_m.sort_values(by=['Qtd_Periodos', 'Total_Itens'], ascending=[False, False])
+                # 3. Ordena os piores: PRIMEIRO pelo volume de itens, DEPOIS pela recorrência
+                resumo_recorrencia_m = resumo_recorrencia_m.sort_values(by=['Total_Itens', 'Qtd_Periodos'], ascending=[False, False])
                 
                 # 4. Pega apenas o TOP 15 piores motoristas para não estourar o tamanho do gráfico
                 top_motoristas = resumo_recorrencia_m.head(15)['Motorista'].tolist()
@@ -434,9 +434,9 @@ elif st.session_state.get("authentication_status"):
                     Total_Itens=('Quantidade', 'sum')    # Quantos itens ele perdeu no total? (Ocorrência)
                 ).reset_index()
                 
-                # 3. Ordena os piores: Primeiro quem reclama em mais meses, depois quem tem mais volume
-                resumo_recorrencia = resumo_recorrencia.sort_values(by=['Qtd_Periodos', 'Total_Itens'], ascending=[False, False])
-                
+                # 3. Ordena os piores: PRIMEIRO pelo volume de itens, DEPOIS pela recorrência
+                resumo_recorrencia = resumo_recorrencia.sort_values(by=['Total_Itens', 'Qtd_Periodos'], ascending=[False, False])
+
                 # 4. Pega apenas o TOP 15 piores clientes para não estourar o tamanho do gráfico
                 top_clientes = resumo_recorrencia.head(15)['Cliente'].tolist()
                 

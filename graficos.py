@@ -146,3 +146,39 @@ def plot_evolucao_temporal(df, periodicidade='M'):
     
     fig.update_layout(xaxis_title="Período", yaxis_title="Volume de Itens (Qtd)", hovermode="x unified", legend_title="Filial")
     return fig
+    
+    def plot_comparativo_temporal_tipo(df):
+    """Gera um gráfico de barras comparando Danos x Faltas mês a mês."""
+    if df.empty or 'Periodo' not in df.columns:
+        return None
+        
+    # Soma a quantidade de itens agrupando pelo Mês e pelo Tipo (Dano/Falta)
+    df_grp = df.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()
+    
+    # Trava para forçar a ordem cronológica correta no eixo X
+    meses_ordem = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    df_grp['Periodo'] = pd.Categorical(df_grp['Periodo'], categories=meses_ordem, ordered=True)
+    df_grp = df_grp.sort_values('Periodo')
+    
+    # Monta o gráfico de barras agrupado (barmode='group')
+    fig = px.bar(
+        df_grp, 
+        x='Periodo', 
+        y='Quantidade', 
+        color='Tipo_Ocorrencia', 
+        barmode='group', 
+        text_auto='.0f',
+        color_discrete_map={'Dano':'#1f77b4', 'Falta':'#d62728'},
+        title="Volume Mensal: Danos x Faltas"
+    )
+    
+    fig.update_layout(
+        xaxis_title="", 
+        yaxis_title="Volume de Itens", 
+        legend_title="",
+        hovermode="x unified"
+    )
+    
+    return fig
+
+

@@ -795,6 +795,18 @@ elif st.session_state.get("authentication_status"):
         with aba11:
             st.subheader("📈 Análise de Tendências Temporais")
             
+            # --- NOVO GRÁFICO: VISÃO CLARA DOS PIORES PERÍODOS ---
+            st.markdown("### ⚖️ Comparativo Direto: Danos vs Faltas")
+            fig_comparativo = plot_comparativo_temporal_tipo(df_uni)
+            if fig_comparativo:
+                st.plotly_chart(fig_comparativo, use_container_width=True)
+            else:
+                st.info("Dados insuficientes para gerar o comparativo.")
+                
+            st.write("---")
+            
+            # --- GRÁFICO ANTIGO MANTIDO (LINHA DO TEMPO POR FILIAL) ---
+            st.markdown("### 🏢 Evolução por Filial")
             tipo_base = st.radio("Qual base de dados você quer analisar na linha do tempo?", ["Ambas (Geral)", "Somente Danos", "Somente Faltas"], horizontal=True)
             tipo_visao = st.radio("Selecione a periodicidade:", ["Mensal", "Semanal"], horizontal=True)
             param_tempo = 'M' if tipo_visao == "Mensal" else 'W'

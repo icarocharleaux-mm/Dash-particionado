@@ -651,7 +651,12 @@ elif st.session_state.get("authentication_status"):
                 if not alertas.empty:
                     alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
                     alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
-                    st.error(f"⚠️ {len(alertas)} Indícios Detectados")
+                    
+                    # --- NOVA LÓGICA DE SOMA AQUI ---
+                    total_itens_suspeitos = alertas['Quantidade'].sum()
+                    
+                    # --- MENSAGEM ATUALIZADA NA TELA ---
+                    st.error(f"⚠️ {len(alertas)} Indícios Detectados  |  📦 **{total_itens_suspeitos:,.0f} Itens Envolvidos**")
                     
                     colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal', 'description']
                     colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]

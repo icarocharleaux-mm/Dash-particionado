@@ -20,7 +20,7 @@ from dados import load_data
 from filtros import aplicar_filtros_barra_lateral
 from graficos import (plot_top_motoristas, plot_comparativo_filial, plot_pizza_tipo_ocorrencia, 
                       plot_curva_abc, plot_heatmap_recorrencia, plot_mapa_rotas,
-                      plot_evolucao_temporal) 
+                      plot_evolucao_temporal, plot_comparativo_temporal_tipo)
 
 # Configuração da Página e CSS (DEVE SER O PRIMEIRO COMANDO)
 st.set_page_config(page_title="Painel Integrado: Danos & Faltas", layout="wide", page_icon="🚀")

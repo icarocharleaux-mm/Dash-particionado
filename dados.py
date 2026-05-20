@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import logging
 
 def load_data():
     mapa_meses_num = {
@@ -14,9 +15,7 @@ def load_data():
         df_danos = pd.read_csv("base_pronta.csv", sep=";", encoding="latin-1")
         df_danos.columns = [str(c).replace('\ufeff', '').replace('ï»¿', '').strip().lower() for c in df_danos.columns]
 
-        # Padronização imediata pela coluna 0
         if not df_danos.empty:
-            # CORREÇÃO: Removido dayfirst=True para aceitar o formato YYYY-MM-DD da base
             df_danos["Data_Filtro"] = pd.to_datetime(df_danos.iloc[:, 0], errors='coerce')
             df_danos['Periodo'] = df_danos["Data_Filtro"].dt.month.map(mapa_meses_num).fillna('Não Identificado')
         else:
@@ -33,6 +32,8 @@ def load_data():
         df_danos['Tipo_Ocorrencia'] = 'Dano'
         df_danos['Canal'] = 'N/A'
     except Exception as e:
+        logging.error(f"Erro ao carregar base de Danos: {e}")
+        st.error("🚨 Erro Crítico: Não foi possível carregar o arquivo 'base_pronta.csv'. Os dados de Danos estarão vazios.")
         df_danos = pd.DataFrame()
 
     # ==========================================
@@ -42,9 +43,7 @@ def load_data():
         df_faltas = pd.read_csv("base_falta_pronta.csv", sep=";", encoding="latin-1")
         df_faltas.columns = [str(c).replace('\ufeff', '').replace('ï»¿', '').strip().lower() for c in df_faltas.columns]
 
-        # Padronização imediata pela coluna 0
         if not df_faltas.empty:
-            # CORREÇÃO: Removido dayfirst=True para aceitar o formato YYYY-MM-DD da base
             df_faltas["Data_Filtro"] = pd.to_datetime(df_faltas.iloc[:, 0], errors='coerce')
             df_faltas['Periodo'] = df_faltas["Data_Filtro"].dt.month.map(mapa_meses_num).fillna('Não Identificado')
         else:
@@ -61,16 +60,17 @@ def load_data():
         df_faltas['Tipo_Ocorrencia'] = 'Falta'
         df_faltas['Empresa'] = 'NATURA'
     except Exception as e:
+        logging.error(f"Erro ao carregar base de Faltas: {e}")
+        st.error("🚨 Erro Crítico: Não foi possível carregar o arquivo 'base_falta_pronta.csv'. Os dados de Faltas estarão vazios.")
         df_faltas = pd.DataFrame()
 
     # ==========================================
-    # 3. UNIFICAR E BLINDAR (Lógica de preenchimento corrigida)
+    # 3. UNIFICAR E BLINDAR
     # ==========================================
     colunas_comuns = ['Cliente', 'Pedido', 'Motorista', 'Filial', 'Categoria', 'Rota', 'Tipo_Ocorrencia', 'Quantidade', 'Periodo', 'Empresa', 'Canal', 'Data_Filtro']
     
     for df in [df_danos, df_faltas]:
         if not df.empty:
-            # Garante que a coluna Quantidade é numérica e substitui vazios por 0 (evita virar texto)
             if 'Quantidade' in df.columns:
                 df['Quantidade'] = pd.to_numeric(df['Quantidade'], errors='coerce').fillna(0)
 
@@ -79,7 +79,6 @@ def load_data():
                     if col == 'Data_Filtro': df[col] = pd.NaT
                     else: df[col] = 'Não Identificado'
                 
-                # SÓ preenche com "Não Identificado" se NÃO for a coluna de data ou de quantidade
                 if col not in ['Data_Filtro', 'Quantidade']:
                     df[col] = df[col].fillna('Não Identificado')
 
@@ -88,10 +87,9 @@ def load_data():
         df_unificado['Rota'] = df_unificado['Rota'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
 
     # ==========================================
-    # 4. CARREGAR MAPAS E TRATATIVAS
+    # 4. CARREGAR MAPAS
     # ==========================================
     try:
-        # Extraindo as coordenadas e bairros diretamente das bases oficiais!
         df_notas = pd.read_csv("relatorionotas.csv", sep=";", encoding="latin-1", skiprows=7)
         df_falta = pd.read_csv("relatorionotas_falta.csv", sep=";", encoding="latin-1", skiprows=7)
         df_ref = pd.concat([df_notas, df_falta], ignore_index=True)
@@ -109,19 +107,25 @@ def load_data():
                 'LONGITUDE': 'mean'
             }).reset_index()
 
-            # Separamos em dois dataframes para respeitar o formato original do seu return
             df_coord_agg = df_geo_agg[['Rota', 'LATITUDE', 'LONGITUDE']].copy()
             df_mapa_agg = df_geo_agg[['Rota', 'Cidade', 'Bairro']].copy()
         else:
             df_coord_agg, df_mapa_agg = pd.DataFrame(), pd.DataFrame()
 
     except Exception as e:
+        logging.warning(f"Aviso ao carregar mapas geográficos: {e}")
+        st.warning("⚠️ Os arquivos de notas ('relatorionotas.csv' ou 'relatorionotas_falta.csv') não puderam ser carregados corretamente. As abas de mapa podem estar limitadas.")
         df_coord_agg, df_mapa_agg = pd.DataFrame(), pd.DataFrame()
 
+    # ==========================================
+    # 5. CARREGAR TRATATIVAS LOCAIS
+    # ==========================================
     try:
         df_trat1 = pd.read_csv("Tratativas.csv", sep=";", encoding="latin-1").dropna(subset=['MOTORISTA'])
         df_trat2 = pd.read_csv("tratativas2.csv", sep=";", encoding="latin-1").dropna(subset=['MOTORISTA'])
-    except Exception:
+    except Exception as e:
+        logging.warning(f"Aviso ao carregar arquivos locais de tratativas: {e}")
+        # Aqui não precisamos de st.warning na tela principal porque as tratativas agora vêm da aba 8 (Nuvem).
         df_trat1, df_trat2 = pd.DataFrame(), pd.DataFrame()
 
     return df_danos, df_faltas, df_unificado, df_mapa_agg, df_coord_agg, df_trat1, df_trat2

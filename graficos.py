@@ -148,9 +148,9 @@ def plot_evolucao_temporal(df, periodicidade='M'):
     return fig
     
     def plot_comparativo_temporal_tipo(df):
-    """Gera um gráfico de barras comparando Danos x Faltas mês a mês."""
-    if df.empty or 'Periodo' not in df.columns:
-        return None
+        """Gera um gráfico de barras comparando Danos x Faltas mês a mês."""
+        if df.empty or 'Periodo' not in df.columns:
+            return None
         
     # Soma a quantidade de itens agrupando pelo Mês e pelo Tipo (Dano/Falta)
     df_grp = df.groupby(['Periodo', 'Tipo_Ocorrencia'])['Quantidade'].sum().reset_index()

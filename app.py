@@ -364,7 +364,7 @@ elif st.session_state.get("authentication_status"):
             st.download_button("📄 Baixar Relatório: Recor. Motorista (PDF)", data=pdf_aba5, file_name="Recorrencia_Motoristas.pdf", mime="application/pdf", key="pdf_aba5")
 
             with aba6:
-                st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
+            st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
             
             # O gráfico já recebe df_uni (Danos + Faltas combinados)
             fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente')

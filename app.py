@@ -366,18 +366,34 @@ elif st.session_state.get("authentication_status"):
         with aba6:
             st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
             
-            # O gráfico já recebe df_uni (Danos + Faltas combinados)
-            fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni, 'Cliente')
-            
-            if fig_heat_c: 
-                st.plotly_chart(fig_heat_c, use_container_width=True)
+            if not df_uni.empty:
+                # 1. Limpa clientes inválidos para não poluir a análise
+                df_cli_valido = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', '', 'N/A'])].copy()
                 
-                # --- NOVA SEÇÃO: DETALHAMENTO VISUAL DE DANOS VS FALTAS ---
-                st.markdown("**📋 Visão Consolidada de Impacto por Cliente (Danos x Faltas):**")
+                # 2. INTELIGÊNCIA: Descobrir quem é recorrente E ofensor em volume
+                resumo_recorrencia = df_cli_valido.groupby('Cliente').agg(
+                    Qtd_Periodos=('Periodo', 'nunique'), # Quantos meses diferentes ele reclamou? (Recorrência)
+                    Total_Itens=('Quantidade', 'sum')    # Quantos itens ele perdeu no total? (Ocorrência)
+                ).reset_index()
                 
-                if not df_uni.empty:
-                    # Criamos uma tabela dinâmica abrindo o volume de Danos e Faltas por Cliente
-                    df_resumo_cli = df_uni.pivot_table(
+                # 3. Ordena os piores: Primeiro quem reclama em mais meses, depois quem tem mais volume
+                resumo_recorrencia = resumo_recorrencia.sort_values(by=['Qtd_Periodos', 'Total_Itens'], ascending=[False, False])
+                
+                # 4. Pega apenas o TOP 15 piores clientes para não estourar o tamanho do gráfico
+                top_clientes = resumo_recorrencia.head(15)['Cliente'].tolist()
+                
+                # 5. Filtra a base original passando SÓ os piores clientes
+                df_uni_top_clientes = df_cli_valido[df_cli_valido['Cliente'].isin(top_clientes)]
+                
+                # O Gráfico agora só vai renderizar a nata do problema
+                fig_heat_c, df_recor_c = plot_heatmap_recorrencia(df_uni_top_clientes, 'Cliente')
+                
+                if fig_heat_c: 
+                    st.plotly_chart(fig_heat_c, use_container_width=True)
+                    
+                    st.markdown("**📋 Visão Consolidada dos Piores Clientes (Danos x Faltas):**")
+                    
+                    df_resumo_cli = df_uni_top_clientes.pivot_table(
                         index='Cliente',
                         columns='Tipo_Ocorrencia',
                         values='Quantidade',
@@ -385,36 +401,34 @@ elif st.session_state.get("authentication_status"):
                         fill_value=0
                     ).reset_index()
                     
-                    # Vacina para garantir que as colunas existam mesmo se o filtro ocultar alguma
                     if 'Dano' not in df_resumo_cli.columns: df_resumo_cli['Dano'] = 0
                     if 'Falta' not in df_resumo_cli.columns: df_resumo_cli['Falta'] = 0
                     
-                    # Calcula o volume total combinado
                     df_resumo_cli['Total de Itens'] = df_resumo_cli['Dano'] + df_resumo_cli['Falta']
                     
-                    # Ordena do cliente mais crítico para o menos crítico
-                    df_resumo_cli = df_resumo_cli.sort_values(by='Total de Itens', ascending=False).reset_index(drop=True)
+                    # Trazendo a coluna de "Meses Afetados" para a tabela final também
+                    df_resumo_cli = pd.merge(df_resumo_cli, resumo_recorrencia[['Cliente', 'Qtd_Periodos']], on='Cliente', how='left')
                     
-                    # Renomeia as colunas para exibição amigável na tela
+                    df_resumo_cli = df_resumo_cli.sort_values(by=['Qtd_Periodos', 'Total de Itens'], ascending=[False, False]).reset_index(drop=True)
+                    
                     df_resumo_cli = df_resumo_cli.rename(columns={
                         'Dano': '📦 Itens Danificados', 
-                        'Falta': '📉 Itens Faltantes'
+                        'Falta': '📉 Itens Faltantes',
+                        'Qtd_Periodos': '📅 Meses Afetados'
                     })
                     
-                    # Renderiza a tabela para o usuário
                     st.dataframe(df_resumo_cli, use_container_width=True)
-                else:
-                    df_resumo_cli = df_recor_c
-                    st.info("Sem dados detalhados para os filtros selecionados.")
-            else: 
-                st.info("Nenhum cliente válido para análise na seleção atual.")
+                else: 
+                    st.info("Nenhum cliente válido para análise na seleção atual.")
+                    df_resumo_cli = None
+            else:
+                st.info("Base de dados vazia para os filtros atuais.")
                 df_resumo_cli = None
                 
             st.write("---")
-            resumo_6 = ["Acompanhamento dos Clientes com maior volume de ocorrencias reincidentes, consolidando Danos e Faltas."]
+            resumo_6 = ["Acompanhamento dos Clientes mais críticos (Filtrados por Recorrencia de Meses e Volume de Itens)."]
             
-            # Atualizado para exportar a nova tabela detalhada também no PDF!
-            pdf_aba6 = gerar_pdf_dinamico("Recorrencia - Clientes", resumo_6, df_resumo_cli if fig_heat_c else None)
+            pdf_aba6 = gerar_pdf_dinamico("Dossie - Clientes Criticos", resumo_6, df_resumo_cli if df_resumo_cli is not None else None)
             st.download_button("📄 Baixar Relatório: Recor. Cliente (PDF)", data=pdf_aba6, file_name="Recorrencia_Clientes.pdf", mime="application/pdf", key="pdf_aba6")
 
         with aba7:

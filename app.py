@@ -351,18 +351,76 @@ elif st.session_state.get("authentication_status"):
 
         with aba5:
             st.subheader("🔄 Histórico Mensal de Ofensores (Motoristas)")
-            fig_heat_m, df_recor_m = plot_heatmap_recorrencia(df_uni, 'Motorista')
-            if fig_heat_m:
-                st.plotly_chart(fig_heat_m, use_container_width=True)
-                st.markdown("**📋 Motoristas Reincidentes:**")
-                st.dataframe(df_recor_m, use_container_width=True)
-            else: st.info("Ajuste os filtros para visualizar a recorrência.")
             
+            if not df_uni.empty:
+                # 1. Limpa motoristas inválidos para não poluir a análise
+                df_mot_valido = df_uni[~df_uni['Motorista'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', '', 'N/A'])].copy()
+                
+                # 2. INTELIGÊNCIA: Descobrir quem é recorrente E ofensor em volume
+                resumo_recorrencia_m = df_mot_valido.groupby('Motorista').agg(
+                    Qtd_Periodos=('Periodo', 'nunique'), # Quantos meses diferentes ele teve ocorrência?
+                    Total_Itens=('Quantidade', 'sum')    # Quantos itens ele perdeu/danificou no total?
+                ).reset_index()
+                
+                # 3. Ordena os piores: Primeiro quem reincide em mais meses, depois quem tem mais volume
+                resumo_recorrencia_m = resumo_recorrencia_m.sort_values(by=['Qtd_Periodos', 'Total_Itens'], ascending=[False, False])
+                
+                # 4. Pega apenas o TOP 15 piores motoristas para não estourar o tamanho do gráfico
+                top_motoristas = resumo_recorrencia_m.head(15)['Motorista'].tolist()
+                
+                # 5. Filtra a base original passando SÓ os piores motoristas
+                df_uni_top_mot = df_mot_valido[df_mot_valido['Motorista'].isin(top_motoristas)]
+                
+                # O Gráfico agora só vai renderizar a nata do problema
+                fig_heat_m, df_recor_m = plot_heatmap_recorrencia(df_uni_top_mot, 'Motorista')
+                
+                if fig_heat_m:
+                    st.plotly_chart(fig_heat_m, use_container_width=True)
+                    
+                    st.markdown("**📋 Visão Consolidada dos Piores Motoristas (Danos x Faltas):**")
+                    
+                    # Cria a tabela dinâmica abrindo Danos e Faltas
+                    df_resumo_mot = df_uni_top_mot.pivot_table(
+                        index='Motorista',
+                        columns='Tipo_Ocorrencia',
+                        values='Quantidade',
+                        aggfunc='sum',
+                        fill_value=0
+                    ).reset_index()
+                    
+                    # Vacina contra colunas ausentes
+                    if 'Dano' not in df_resumo_mot.columns: df_resumo_mot['Dano'] = 0
+                    if 'Falta' not in df_resumo_mot.columns: df_resumo_mot['Falta'] = 0
+                    
+                    df_resumo_mot['Total de Itens'] = df_resumo_mot['Dano'] + df_resumo_mot['Falta']
+                    
+                    # Trazendo a coluna de "Meses Afetados" para a tabela final
+                    df_resumo_mot = pd.merge(df_resumo_mot, resumo_recorrencia_m[['Motorista', 'Qtd_Periodos']], on='Motorista', how='left')
+                    
+                    # Ordenação final da tabela de exibição
+                    df_resumo_mot = df_resumo_mot.sort_values(by=['Qtd_Periodos', 'Total de Itens'], ascending=[False, False]).reset_index(drop=True)
+                    
+                    # Renomeando para ficar amigável na tela
+                    df_resumo_mot = df_resumo_mot.rename(columns={
+                        'Dano': '📦 Itens Danificados', 
+                        'Falta': '📉 Itens Faltantes',
+                        'Qtd_Periodos': '📅 Meses Afetados'
+                    })
+                    
+                    st.dataframe(df_resumo_mot, use_container_width=True)
+                else: 
+                    st.info("Ajuste os filtros para visualizar a recorrência.")
+                    df_resumo_mot = None
+            else:
+                st.info("Base de dados vazia para os filtros atuais.")
+                df_resumo_mot = None
+                
             st.write("---")
-            resumo_5 = ["Acompanhamento dos Motoristas com maior reincidencia nos ultimos meses."]
-            pdf_aba5 = gerar_pdf_dinamico("Recorrencia - Motoristas", resumo_5, df_recor_m)
+            resumo_5 = ["Acompanhamento dos Motoristas mais críticos (Filtrados por Recorrencia de Meses e Volume de Itens)."]
+            
+            # Exportação para PDF agora leva a tabela rica e detalhada
+            pdf_aba5 = gerar_pdf_dinamico("Dossiê - Motoristas Críticos", resumo_5, df_resumo_mot if df_resumo_mot is not None else None)
             st.download_button("📄 Baixar Relatório: Recor. Motorista (PDF)", data=pdf_aba5, file_name="Recorrencia_Motoristas.pdf", mime="application/pdf", key="pdf_aba5")
-
         with aba6:
             st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
             

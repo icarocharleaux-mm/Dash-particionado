@@ -1,6 +1,7 @@
 import plotly.express as px
 import pandas as pd
 import streamlit as st
+import logging
 
 def plot_top_motoristas(df_filtrado, escala_cor):
     if df_filtrado.empty: return None
@@ -34,26 +35,50 @@ def plot_curva_abc(df_filtrado):
     fig = px.bar(abc, x='Motorista', y='Quantidade', color='Classe', color_discrete_map={'A (Crítico - 70%)':'#d62728','B (Atenção - 20%)':'#ff7f0e','C (Normal - 10%)':'#2ca02c'})
     return fig, abc
 
-def plot_heatmap_recorrencia(df_filtrado, coluna_alvo):
-    """Gera o Heatmap e a tabela de reincidentes. Funciona para Motorista ou Cliente!"""
-    df_valido = df_filtrado[~df_filtrado[coluna_alvo].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
-    if df_valido.empty: return None, None
-    
-    df_hist = df_valido.groupby([coluna_alvo, 'Periodo']).size().reset_index(name='Casos')
-    df_pivot = df_hist.pivot_table(index=coluna_alvo, columns='Periodo', values='Casos', fill_value=0)
-    
-    meses_ref = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    colunas_existentes = [m for m in meses_ref if m in df_pivot.columns]
-    df_pivot = df_pivot[colunas_existentes]
-    
-    df_pivot['Total'] = df_pivot.sum(axis=1)
-    df_pivot_plot = df_pivot.sort_values('Total', ascending=False).drop(columns=['Total']).head(25)
-    
-    fig = px.imshow(df_pivot_plot, text_auto=True, aspect="auto", color_continuous_scale='YlOrRd', labels=dict(x="Mês", y=coluna_alvo, color="Ocorrências"))
-    
-    recor_resumo = df_valido.groupby(coluna_alvo)['Periodo'].nunique().sort_values(ascending=False).reset_index()
-    recor_resumo.columns = [coluna_alvo, 'Meses com Problemas']
-    return fig, recor_resumo[recor_resumo['Meses com Problemas'] > 1]
+def plot_heatmap_recorrencia(df, coluna_alvo):
+    """Gera o Heatmap focado no volume de itens (quantidade). Funciona para Motorista ou Cliente!"""
+    try:
+        df_valido = df[~df[coluna_alvo].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
+        if df_valido.empty:
+            return None, pd.DataFrame()
+
+        # Usamos values='Quantidade' e aggfunc='sum' para somar os itens perdidos/danificados
+        pivot = df_valido.pivot_table(
+            index=coluna_alvo, 
+            columns='Periodo', 
+            values='Quantidade', 
+            aggfunc='sum', 
+            fill_value=0
+        )
+        
+        if pivot.empty:
+            return None, pd.DataFrame()
+            
+        # Ordena o gráfico para os piores ficarem no topo visualmente
+        pivot['Total'] = pivot.sum(axis=1)
+        pivot = pivot.sort_values(by='Total', ascending=True).drop(columns=['Total'])
+        
+        # Gera o mapa de calor com a escala de cores focada em volume
+        fig = px.imshow(
+            pivot, 
+            text_auto='.0f', # Remove casas decimais soltas e exibe números inteiros
+            aspect="auto", 
+            color_continuous_scale="Reds",
+            labels=dict(x="Período", y=coluna_alvo, color="Volume de Itens")
+        )
+        
+        fig.update_layout(
+            xaxis_title="", 
+            yaxis_title="",
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
+        
+        # Retorna o gráfico e a tabela base para o app.py
+        return fig, pivot.reset_index()
+
+    except Exception as e:
+        logging.error(f"Erro ao gerar heatmap de recorrência para {coluna_alvo}: {e}")
+        return None, pd.DataFrame()
 
 def plot_mapa_rotas(df_uni, df_mapa_agg, df_coord_agg):
     """Cruza os dados geográficos e gera o mapa interativo."""

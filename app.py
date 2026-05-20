@@ -363,7 +363,7 @@ elif st.session_state.get("authentication_status"):
             pdf_aba5 = gerar_pdf_dinamico("Recorrencia - Motoristas", resumo_5, df_recor_m)
             st.download_button("📄 Baixar Relatório: Recor. Motorista (PDF)", data=pdf_aba5, file_name="Recorrencia_Motoristas.pdf", mime="application/pdf", key="pdf_aba5")
 
-            with aba6:
+        with aba6:
             st.subheader("🔄 Histórico Mensal de Clientes Reincidentes")
             
             # O gráfico já recebe df_uni (Danos + Faltas combinados)

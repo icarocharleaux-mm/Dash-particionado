@@ -590,18 +590,150 @@ elif st.session_state.get("authentication_status"):
         # (Demais abas permanecem com sua estrutura lógica mantida, sendo cobertas pelos padrões de cor CSS injetados no início do código)
         with aba8:
             st.subheader("📝 Controle de Tratativas")
-            st.info("Acesse a sua base do onedrive normalmente. O Visual da tabela nativa herdará as cores via CSS inserido.")
+            link_consolidado = "https://1drv.ms/x/c/6b2fcbf5f5526df1/IQDtrkuc6eIKQKQh9HsI07EUAaJNoPcRiVDIdVI_xUAMCUQ?download=1"
+
+            st.markdown("### 📦 Tratativas - Danos")
+            df_exibicao_danos = None
+            
+            try:
+                with st.spinner("Sincronizando Danos com o OneDrive..."):
+                    df_tratativas_danos = carregar_excel_nuvem_turbinado(link_consolidado, "danos").dropna(how='all').head(5).reset_index(drop=True)
+                st.success("✅ Tratativas de Danos conectadas com sucesso!")
+                
+                with st.expander("⚙️ Escolher colunas para exibir (Danos)"):
+                    todas_colunas_danos = df_tratativas_danos.columns.tolist()
+                    colunas_selecionadas_danos = st.multiselect("Selecione as colunas desejadas:", options=todas_colunas_danos, default=todas_colunas_danos, key="multi_danos")
+                
+                df_exibicao_danos = df_tratativas_danos[colunas_selecionadas_danos]
+                st.dataframe(df_exibicao_danos, use_container_width=True)
+                
+            except Exception as e:
+                st.warning("⏳ Falha ao carregar a nuvem. Aguardando a verificação do link público.")
+                st.info(f"Detalhe técnico: {e}")
+
+            st.write("---") 
+
+            st.markdown("### 🛍️ Tratativas - Faltas")
+            df_exibicao_faltas = None
+            
+            try:
+                with st.spinner("Sincronizando Faltas com o OneDrive..."):
+                    df_tratativas_faltas = carregar_excel_nuvem_turbinado(link_consolidado, "faltas").dropna(how='all').head(5).reset_index(drop=True)
+                st.success("✅ Tratativas de Faltas conectadas direto da nuvem!")
+                
+                with st.expander("⚙️ Escolher colunas para exibir (Faltas)"):
+                    todas_colunas_faltas = df_tratativas_faltas.columns.tolist()
+                    colunas_selecionadas_faltas = st.multiselect("Selecione as colunas desejadas:", options=todas_colunas_faltas, default=todas_colunas_faltas, key="multi_faltas")
+                    
+                df_exibicao_faltas = df_tratativas_faltas[colunas_selecionadas_faltas]
+                st.dataframe(df_exibicao_faltas, use_container_width=True)
+                
+            except Exception as e:
+                st.error("⚠️ Erro ao conectar com a sua planilha na nuvem.")
+                st.info(f"Detalhe técnico: {e}")
+                
+            st.write("---")
+            resumo_8 = ["Extracao rapida do controle online de tratativas e ressarcimentos."]
+            df_pdf_8 = df_exibicao_danos if df_exibicao_danos is not None else df_exibicao_faltas
+            pdf_aba8 = gerar_pdf_dinamico("Controle de Tratativas (Nuvem)", resumo_8, df_pdf_8)
+            st.download_button(label="📄 Baixar Relatório: Tratativas (PDF)", data=pdf_aba8, file_name="Controle_Tratativas.pdf", mime="application/pdf", key="pdf_aba8")
 
         with aba9:
             st.subheader("🚨 Dossiê de Fraudes")
-            # Código de alertas mantido e visual modificado pelo CSS Dark Mode
+            alertas = pd.DataFrame()
+            
+            if not df_uni.empty:
+                df_cli = df_uni[~df_uni['Cliente'].str.upper().isin(['NÃO IDENTIFICADO', 'NAN', ''])].copy()
+                
+                f_isento = pd.DataFrame()
+                coluna_texto = 'description' 
+                
+                if coluna_texto in df_cli.columns:
+                    termos_origem = [
+                        r'falta de volume', r'volume (inteiro|faltante)', r'sacola', 
+                        r'presente', r'trocado', r'Volume faltante(s)', r'SACOLA PRESENTE', r'inversão'
+                    ]
+                    padrao_busca = '|'.join(termos_origem)
+                    f_isento = df_cli[df_cli[coluna_texto].str.contains(padrao_busca, case=False, na=False, regex=True)].copy()
+                    if not f_isento.empty:
+                        f_isento['Motivo'] = 'Isento: Erro de Origem / Falta'
+
+                f_vol = df_cli[df_cli['Quantidade'] >= 50].copy()
+                f_vol['Motivo'] = 'Volume Crítico'
+                
+                df_rep = df_cli[df_cli['Quantidade'] >= 10].copy()
+                cli_susp = df_rep.groupby(['Cliente', 'Quantidade']).size().reset_index(name='V')
+                cli_susp = cli_susp[cli_susp['V'] > 1]
+                f_rep = pd.merge(df_cli, cli_susp[['Cliente', 'Quantidade']], on=['Cliente', 'Quantidade'])
+                f_rep['Motivo'] = 'Reclamação Idêntica'
+                
+                mot_suspeitos = df_cli.groupby('Motorista')['Cliente'].nunique().reset_index(name='Qtd_Clientes')
+                lista_mot = mot_suspeitos[mot_suspeitos['Qtd_Clientes'] > 20]['Motorista']
+                f_mot = df_cli[df_cli['Motorista'].isin(lista_mot)].copy()
+                f_mot['Motivo'] = 'Motorista Risco: +20 Clientes Afetados'
+                
+                alertas = pd.concat([f_vol, f_rep, f_mot, f_isento])
+                
+                if not alertas.empty:
+                    alertas = alertas.drop_duplicates(subset=['Pedido', 'Motivo'])
+                    alertas = alertas.loc[:, ~alertas.columns.duplicated()] 
+                    
+                    # --- NOVA LÓGICA DE SOMA AQUI ---
+                    total_itens_suspeitos = alertas['Quantidade'].sum()
+                    
+                    # --- MENSAGEM ATUALIZADA NA TELA ---
+                    st.error(f"⚠️ {len(alertas)} Indícios Detectados  |  📦 **{total_itens_suspeitos:,.0f} Itens Envolvidos**")
+                    
+                    colunas_exibicao = ['Motivo', 'Cliente', 'Pedido', 'Quantidade', 'Tipo_Ocorrencia', 'Motorista', 'Filial', 'Canal', 'description']
+                    colunas_existentes = [col for col in colunas_exibicao if col in alertas.columns]
+                    df_exibicao = alertas[colunas_existentes].copy()
+                    
+                    st.dataframe(df_exibicao, use_container_width=True)
+                else: 
+                    st.success("✅ Tudo limpo no filtro atual.")
 
         with aba10:
             st.subheader("📋 Plano de Ação e Diretrizes")
+            st.markdown("Siga rigorosamente as ações abaixo para mitigação de desvios e auditoria obrigatória.")
+            try: st.image("plano.jpg", use_container_width=True)
+            except Exception: st.error("⚠️ Arquivo 'plano.jpg' não encontrado.")
+                
+            st.write("---")
+            resumo_10 = ["Gestao Operacional e Qualidade", "- Foco: 5 Filiais mais ofensoras", "- Data Referencia: 25/03/2026"]
+            pdf_aba10 = gerar_pdf_dinamico("Plano de Acao Logistico", resumo_10, None)
+            st.download_button("📄 Baixar Relatório: Plano (PDF)", data=pdf_aba10, file_name="Plano_Acao.pdf", mime="application/pdf", key="pdf_aba10")
 
         with aba11:
             st.subheader("📈 Análise de Tendências Temporais")
-            # Gráficos temporais irão refletir as novas diretrizes se o seu arquivo graficos.py também for atualizado para as paletas.
+            
+            # --- NOVO GRÁFICO: VISÃO CLARA DOS PIORES PERÍODOS ---
+            st.markdown("### ⚖️ Comparativo Direto: Danos vs Faltas")
+            fig_comparativo = plot_comparativo_temporal_tipo(df_uni)
+            if fig_comparativo:
+                st.plotly_chart(fig_comparativo, use_container_width=True)
+            else:
+                st.info("Dados insuficientes para gerar o comparativo.")
+                
+            st.write("---")
+            
+            # --- GRÁFICO ANTIGO MANTIDO (LINHA DO TEMPO POR FILIAL) ---
+            st.markdown("### 🏢 Evolução por Filial")
+            tipo_base = st.radio("Qual base de dados você quer analisar na linha do tempo?", ["Ambas (Geral)", "Somente Danos", "Somente Faltas"], horizontal=True)
+            tipo_visao = st.radio("Selecione a periodicidade:", ["Mensal", "Semanal"], horizontal=True)
+            param_tempo = 'M' if tipo_visao == "Mensal" else 'W'
+            
+            if tipo_base == "Somente Danos": df_plot = df_danos  
+            elif tipo_base == "Somente Faltas": df_plot = df_faltas 
+            else: df_plot = df_uni    
+                
+            if not df_plot.empty:
+                fig_tempo = plot_evolucao_temporal(df_plot, periodicidade=param_tempo)
+                if fig_tempo: st.plotly_chart(fig_tempo, use_container_width=True)
+                else: st.warning("Não foi possível gerar o gráfico de linha do tempo com as datas atuais.")
+            else:
+                st.warning(f"Não há dados disponíveis para a seleção: {tipo_base}")
+            
+            st.divider()
 
     except Exception as e:
         st.error(f"Erro no processamento: {e}")

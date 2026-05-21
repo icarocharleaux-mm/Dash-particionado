@@ -44,7 +44,7 @@ def _aplicar_layout_dark_dias(fig):
 def plot_top_motoristas(df_filtrado, escala_cor=DIAS_TEAL_SCALE):
     if df_filtrado.empty: return None
     ranking = df_filtrado.groupby('Motorista')['Quantidade'].sum().nlargest(10).reset_index()
-    filial_map = df_filtrado.groupby(\"Motorista\")[\"Filial\"].agg(lambda x: x.value_counts().index[0] if not x.empty else \"N/A\").to_dict()
+    filial_map = df_filtrado.groupby("Motorista")["Filial"].agg(lambda x: x.value_counts().index[0] if not x.empty else \"N/A\").to_dict()
     ranking[\"Filial\"] = ranking[\"Motorista\"].map(filial_map)
     
     fig = px.bar(ranking, x='Quantidade', y='Motorista', orientation='h', color='Quantidade', color_continuous_scale=escala_cor, hover_data=['Filial'])
